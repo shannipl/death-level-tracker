@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Service) processWorld(world string, guilds []string) {
-	// Fetch database levels for comparison
+
 	dbLevels, err := s.fetchPlayerLevels(world)
 	if err != nil {
 		return
@@ -17,7 +17,6 @@ func (s *Service) processWorld(world string, guilds []string) {
 	var onlineNames []string
 	var tibiaComLevels map[string]int
 
-	// If configured, use tibia.com HTML for level tracking
 	if s.config.UseTibiaComForLevels {
 		tibiaComLevels, err = s.fetcher.FetchWorldFromTibiaCom(world)
 		if err != nil {
@@ -27,15 +26,12 @@ func (s *Service) processWorld(world string, guilds []string) {
 			return
 		}
 
-		// Extract online player names from tibia.com HTML
 		for name := range tibiaComLevels {
 			onlineNames = append(onlineNames, name)
 		}
 
-		// Process level changes using tibia.com levels
 		s.processLevelsFromTibiaCom(tibiaComLevels, world, guilds, dbLevels)
 
-		// Still fetch character details for death tracking
 		players := make([]tibiadata.OnlinePlayer, 0, len(tibiaComLevels))
 		for name, level := range tibiaComLevels {
 			players = append(players, tibiadata.OnlinePlayer{
@@ -45,18 +41,13 @@ func (s *Service) processWorld(world string, guilds []string) {
 		}
 		s.processDeathsForOnlinePlayers(players, guilds)
 	} else {
-		// Use TibiaData API for both levels and deaths
 		onlineNames = s.processWorldUsingTibiaData(world, guilds, dbLevels)
 	}
 
-	// Process offline players (same as before)
 	s.processOfflinePlayers(world, onlineNames, guilds, dbLevels)
-
-	// Maintenance
 	s.performMaintenance(world, onlineNames)
 }
 
-// processWorldUsingTibiaData is the original logic using TibiaData API
 func (s *Service) processWorldUsingTibiaData(world string, guilds []string, dbLevels map[string]int) []string {
 	players, err := s.fetcher.FetchWorld(world)
 	if err != nil {
@@ -130,19 +121,21 @@ func (s *Service) performMaintenance(world string, onlineNames []string) {
 	}
 }
 
-// processLevelsFromTibiaCom processes level changes using data from tibia.com HTML
 func (s *Service) processLevelsFromTibiaCom(tibiaComLevels map[string]int, world string, guilds []string, dbLevels map[string]int) {
 	for name, currentLevel := range tibiaComLevels {
+		// Skip players below minimum level
+		if currentLevel < s.config.MinLevelTrack {
+			continue
+		}
+
 		savedLevel, exists := dbLevels[name]
 
-		// Update level in database if it changed
 		if !exists || savedLevel != currentLevel {
 			if err := s.storage.UpsertPlayerLevel(context.Background(), name, currentLevel, world); err != nil {
 				slog.Error("Failed to upsert player level", "name", name, "error", err)
 			}
 		}
 
-		// Check for level up
 		if exists && currentLevel > savedLevel {
 			slog.Info("Level up detected", "name", name, "old_level", savedLevel, "new_level", currentLevel)
 			s.analytics.(*Analytics).notifyLevelUp(guilds, name, savedLevel, currentLevel)
@@ -150,9 +143,7 @@ func (s *Service) processLevelsFromTibiaCom(tibiaComLevels map[string]int, world
 	}
 }
 
-// processDeathsForOnlinePlayers fetches character details and checks for deaths
 func (s *Service) processDeathsForOnlinePlayers(players []tibiadata.OnlinePlayer, guilds []string) {
-	// Filter players by minimum level
 	var filteredPlayers []tibiadata.OnlinePlayer
 	for _, p := range players {
 		if p.Level >= s.config.MinLevelTrack {
@@ -164,10 +155,8 @@ func (s *Service) processDeathsForOnlinePlayers(players []tibiadata.OnlinePlayer
 		return
 	}
 
-	// Fetch character details for death checking
 	results := s.fetcher.FetchCharacterDetails(filteredPlayers)
 
-	// Process only deaths (not levels, those were already processed from tibia.com)
 	for char := range results {
 		name := char.Character.Character.Name
 		s.analytics.(*Analytics).checkDeaths(name, char.Character.Deaths, guilds)

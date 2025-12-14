@@ -13,7 +13,12 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
+      - ALL_PROXY=socks5://host.docker.internal:40001
+      - HTTPS_PROXY=socks5://host.docker.internal:40001
+      - HTTP_PROXY=socks5://host.docker.internal:40001
       - DATABASE_URL=postgres://tracker:tracker_password@postgres:5432/death_level_tracker?sslmode=disable
       - TRACKER_INTERVAL=${TRACKER_INTERVAL:-5m}
       - WORKER_POOL_SIZE=${WORKER_POOL_SIZE:-10}

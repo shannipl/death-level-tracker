@@ -103,6 +103,9 @@ func TestService_ProcessCharacters(t *testing.T) {
 	service := &Service{
 		fetcher:   mockFetcher,
 		analytics: mockAnalytics,
+		config: &config.Config{
+			MinLevelTrack: 0,
+		},
 	}
 
 	guilds := []string{"guild-1"}
@@ -337,8 +340,6 @@ func TestService_ProcessWorld_FetchWorldError(t *testing.T) {
 
 	service.processWorld("Antica", []string{"guild-1"})
 
-	// With the new implementation, fetchPlayerLevels is called FIRST
-	// So it should be called even if fetchWorld fails later
 	if !levelsFetchCalled {
 		t.Error("Expected GetPlayersLevels to be called before FetchWorld")
 	}

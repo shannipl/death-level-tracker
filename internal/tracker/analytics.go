@@ -37,6 +37,10 @@ func (a *Analytics) ProcessCharacter(char *tibiadata.CharacterResponse, guilds [
 	name := char.Character.Character.Name
 	currentLevel := char.Character.Character.Level
 
+	if currentLevel < a.config.MinLevelTrack {
+		return
+	}
+
 	a.checkDeaths(name, char.Character.Deaths, guilds)
 	a.checkLevelUp(name, currentLevel, char.Character.Character.World, dbLevels, guilds)
 }

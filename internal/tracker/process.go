@@ -67,7 +67,14 @@ func (s *Service) fetchPlayerLevels(world string) (map[string]int, error) {
 }
 
 func (s *Service) processCharacters(players []tibiadata.OnlinePlayer, guilds []string, dbLevels map[string]int) []string {
-	results := s.fetcher.FetchCharacterDetails(players)
+	var filteredPlayers []tibiadata.OnlinePlayer
+	for _, p := range players {
+		if p.Level >= s.config.MinLevelTrack {
+			filteredPlayers = append(filteredPlayers, p)
+		}
+	}
+
+	results := s.fetcher.FetchCharacterDetails(filteredPlayers)
 
 	var onlineNames []string
 	for char := range results {

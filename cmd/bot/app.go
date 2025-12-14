@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"death-level-tracker/internal/config"
@@ -11,6 +12,7 @@ import (
 	"death-level-tracker/internal/tracker"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type App struct {
@@ -80,6 +82,8 @@ func (a *App) Run() error {
 
 	slog.Info("Players Tracker is online!")
 
+	a.StartMetricsServer()
+
 	a.trackerCtx, a.trackerCancel = context.WithCancel(context.Background())
 	go a.trackerService.Start(a.trackerCtx)
 
@@ -97,7 +101,32 @@ func (a *App) Shutdown() {
 		a.discord.Close()
 	}
 
+	if a.trackerCancel != nil {
+		a.trackerCancel()
+	}
+
+	if a.discord != nil {
+		a.discord.Close()
+	}
+
 	if a.store != nil {
 		a.store.Close()
 	}
+}
+
+func (a *App) StartMetricsServer() {
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+
+		server := &http.Server{
+			Addr:    ":2112",
+			Handler: mux,
+		}
+
+		slog.Info("Starting metrics server on :2112")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Metrics server failed", "error", err)
+		}
+	}()
 }

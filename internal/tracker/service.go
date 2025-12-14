@@ -27,7 +27,7 @@ func NewService(cfg *config.Config, store storage.Storage, discord *discordgo.Se
 		config:    cfg,
 		storage:   store,
 		fetcher:   NewFetcher(client, cfg),
-		analytics: NewAnalytics(store, notifier),
+		analytics: NewAnalytics(cfg, store, notifier),
 	}
 }
 

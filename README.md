@@ -12,6 +12,7 @@ A Discord bot that monitors Tibia game worlds for player deaths and level-ups, p
 - 📈 **Level-up Alerts** — Tracks and announces level changes for high-level players
 - ⚡ **Concurrent Processing** — Worker pool for efficient API fetching
 - 🔧 **Per-Guild Configuration** — Each Discord server tracks its own worlds
+- 📊 **Production Monitoring** — Prometheus metrics + Grafana dashboards
 - 🐳 **Docker Ready** — Full containerized deployment with PostgreSQL
 
 ## Quick Start
@@ -21,15 +22,17 @@ A Discord bot that monitors Tibia game worlds for player deaths and level-ups, p
 git clone https://github.com/yourusername/death-level-tracker.git
 cd death-level-tracker
 
-# 2. Set up Discord token (required)
+# 2. Set up secrets (required)
 mkdir -p secrets
 echo "your_discord_bot_token" > secrets/discord_token.txt
+echo "admin_secret_local" > secrets/grafana_password.txt
 
-# 3. Start services
-make dev-up
+# 3. Start all services (includes monitoring)
+make up
 
-# 4. Verify
-make dev-test
+# 4. Access dashboards
+# Grafana: http://localhost:3000 (admin / admin_secret_local)
+# Prometheus: http://localhost:9090
 ```
 
 **For detailed development instructions, see [CHEATSHEET.md](CHEATSHEET.md).**
@@ -45,6 +48,16 @@ make dev-test
                         ┌────────▼─────────┐
                         │   PostgreSQL     │
                         │  (player data)   │
+                        └──────────────────┘
+                                 │
+                        ┌────────▼─────────┐
+                        │   Prometheus     │◄────┐
+                        │  (metrics TSDB)  │     │
+                        └────────┬─────────┘     │
+                                 │               │
+                        ┌────────▼─────────┐     │
+                        │     Grafana      │     │
+                        │  (visualization) │─────┘
                         └──────────────────┘
 ```
 
@@ -87,6 +100,44 @@ DISCORD_CHANNEL_LEVEL=level-tracker
 
 See [CHEATSHEET.md](CHEATSHEET.md#configuration) for validation rules and details.
 
+## Monitoring & Observability
+
+The application includes production-grade monitoring with Prometheus and Grafana:
+
+### Metrics Exposed
+
+- **Business Metrics**
+  - `death_tracker_deaths_total` — Total player deaths tracked
+  - `death_tracker_level_ups_total` — Total level-ups tracked
+  
+- **API Health**
+  - `tibiadata_requests_total{endpoint, status}` — API call count by endpoint/status
+  - `tibiadata_request_duration_seconds{endpoint, status}` — Latency histogram
+
+- **Runtime Metrics**
+  - Standard Go runtime metrics (heap, goroutines, GC)
+
+### Accessing Dashboards
+
+**Local Development:**
+```bash
+# Grafana: http://localhost:3000
+# Prometheus: http://localhost:9090
+# Credentials: admin / admin_secret_local
+```
+
+**Production (VPS):**
+```bash
+# Use SSH tunneling (ports bound to localhost for security)
+ssh -L 3000:localhost:3000 -L 9090:localhost:9090 user@your-vps
+```
+
+The Grafana dashboard ("Death Level Tracker - Ops View") is auto-provisioned with:
+- Executive Summary (SLAs, uptime, P99 latency)
+- Business Intelligence (deaths/level-ups trends)
+- External API Performance (TibiaData latency heatmaps)
+- Runtime Internals (Go heap, goroutines, GC)
+
 
 ## Development
 
@@ -106,6 +157,7 @@ make coverage-html     # Generate coverage report
 - **Migrations:** Atlas
 - **Discord:** discordgo
 - **Code Gen:** sqlc
+- **Monitoring:** Prometheus + Grafana
 - **Containers:** Docker & Docker Compose
 
 ## Project Structure
@@ -113,9 +165,14 @@ make coverage-html     # Generate coverage report
 ```
 death-level-tracker/
 ├── cmd/bot/           # Application entry point
+├── config/            # Configuration files
+│   ├── grafana/       # Dashboard definitions + provisioning
+│   ├── prometheus/    # Prometheus config
+│   └── sqlc.yaml      # sqlc configuration
 ├── internal/
 │   ├── config/        # Configuration & validation
 │   ├── handlers/      # Discord command handlers
+│   ├── metrics/       # Prometheus metrics definitions
 │   ├── storage/       # Database layer
 │   ├── tracker/       # Core tracking logic
 │   └── tibiadata/     # TibiaData API client

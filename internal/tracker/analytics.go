@@ -7,12 +7,15 @@ import (
 	"sync"
 	"time"
 
+	"death-level-tracker/internal/config"
 	"death-level-tracker/internal/formatting"
+	"death-level-tracker/internal/metrics"
 	"death-level-tracker/internal/storage"
 	"death-level-tracker/internal/tibiadata"
 )
 
 type Analytics struct {
+	config         *config.Config
 	storage        storage.Storage
 	notifier       Notifier
 	bootTime       time.Time
@@ -20,8 +23,9 @@ type Analytics struct {
 	seenDeathsLock sync.Mutex
 }
 
-func NewAnalytics(store storage.Storage, notifier Notifier) *Analytics {
+func NewAnalytics(cfg *config.Config, store storage.Storage, notifier Notifier) *Analytics {
 	return &Analytics{
+		config:     cfg,
 		storage:    store,
 		notifier:   notifier,
 		bootTime:   time.Now(),
@@ -97,14 +101,18 @@ func (a *Analytics) notifyDeath(guilds []string, name string, death tibiadata.De
 	content := formatting.MsgDeath(name, timeStr, death.Reason)
 
 	for _, guildID := range guilds {
-		a.notifier.Send(guildID, "death-tracker", content)
+		a.notifier.Send(guildID, a.config.DiscordChannelDeath, content)
 	}
+
+	metrics.TrackedDeaths.Inc()
 }
 
 func (a *Analytics) notifyLevelUp(guilds []string, name string, oldLevel, newLevel int) {
 	content := formatting.MsgLevelUp(name, oldLevel, newLevel)
 
 	for _, guildID := range guilds {
-		a.notifier.Send(guildID, "level-tracker", content)
+		a.notifier.Send(guildID, a.config.DiscordChannelLevel, content)
 	}
+
+	metrics.TrackedLevelUps.Inc()
 }

@@ -12,6 +12,7 @@
 #    - VPS_USER: SSH username (e.g., root)
 #    - VPS_SSH_KEY: Private SSH key for authentication
 #    - VPS_PORT: SSH port (usually 22)
+#    - GRAFANA_PASSWORD: Grafana admin password (for monitoring dashboard)
 #
 # =============================================================================
 
@@ -70,13 +71,23 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
+          envs: GRAFANA_PASSWORD
           script: |
             cd ~/death-level-tracker
+            
+            # Create secrets directory if not exists
+            mkdir -p secrets
+            
+            # Inject secrets from GitHub Actions
+            echo "$GRAFANA_PASSWORD" > secrets/grafana_password.txt
+            
             git pull origin master
             docker compose down
             docker compose up -d --build

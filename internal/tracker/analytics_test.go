@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"death-level-tracker/internal/config"
 	"death-level-tracker/internal/storage"
 	"death-level-tracker/internal/tibiadata"
 )
@@ -72,11 +73,16 @@ func (m *mockNotifier) Send(guildID, channel, content string) {
 	})
 }
 
+var testConfig = &config.Config{
+	DiscordChannelDeath: "death-tracker",
+	DiscordChannelLevel: "level-tracker",
+}
+
 func TestNewAnalytics(t *testing.T) {
 	storage := &mockAnalyticsStorage{}
 	notifier := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, notifier)
+	analytics := NewAnalytics(testConfig, storage, notifier)
 
 	if analytics == nil {
 		t.Fatal("Expected non-nil analytics")
@@ -100,7 +106,7 @@ func TestNewAnalytics(t *testing.T) {
 }
 
 func TestAnalytics_IsOldDeath(t *testing.T) {
-	analytics := NewAnalytics(&mockAnalyticsStorage{}, &mockNotifier{})
+	analytics := NewAnalytics(testConfig, &mockAnalyticsStorage{}, &mockNotifier{})
 
 	// Death before boot time
 	oldDeath := analytics.bootTime.Add(-1 * time.Hour)
@@ -121,7 +127,7 @@ func TestAnalytics_IsOldDeath(t *testing.T) {
 }
 
 func TestAnalytics_IsDuplicateDeath(t *testing.T) {
-	analytics := NewAnalytics(&mockAnalyticsStorage{}, &mockNotifier{})
+	analytics := NewAnalytics(testConfig, &mockAnalyticsStorage{}, &mockNotifier{})
 
 	name := "TestPlayer"
 	deathTime := time.Now()
@@ -149,7 +155,7 @@ func TestAnalytics_IsDuplicateDeath(t *testing.T) {
 }
 
 func TestAnalytics_ShouldUpdateLevel(t *testing.T) {
-	analytics := NewAnalytics(&mockAnalyticsStorage{}, &mockNotifier{})
+	analytics := NewAnalytics(testConfig, &mockAnalyticsStorage{}, &mockNotifier{})
 
 	testCases := []struct {
 		name         string
@@ -175,7 +181,7 @@ func TestAnalytics_ShouldUpdateLevel(t *testing.T) {
 }
 
 func TestAnalytics_IsLevelUp(t *testing.T) {
-	analytics := NewAnalytics(&mockAnalyticsStorage{}, &mockNotifier{})
+	analytics := NewAnalytics(testConfig, &mockAnalyticsStorage{}, &mockNotifier{})
 
 	testCases := []struct {
 		name         string
@@ -205,7 +211,7 @@ func TestAnalytics_NotifyDeath(t *testing.T) {
 	storage := &mockAnalyticsStorage{}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	death := tibiadata.Death{
 		Time:   time.Now(),
@@ -237,7 +243,7 @@ func TestAnalytics_NotifyLevelUp(t *testing.T) {
 	storage := &mockAnalyticsStorage{}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	guilds := []string{"guild-1", "guild-2"}
 	analytics.notifyLevelUp(guilds, "TestPlayer", 100, 101)
@@ -263,7 +269,7 @@ func TestAnalytics_CheckDeaths_OldDeathsIgnored(t *testing.T) {
 	storage := &mockAnalyticsStorage{}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	// Create death before boot time
 	oldDeath := tibiadata.Death{
@@ -283,7 +289,7 @@ func TestAnalytics_CheckDeaths_DuplicateIgnored(t *testing.T) {
 	storage := &mockAnalyticsStorage{}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	death := tibiadata.Death{
 		Time:   analytics.bootTime.Add(1 * time.Hour),
@@ -323,7 +329,7 @@ func TestAnalytics_CheckLevelUp_NewPlayer(t *testing.T) {
 	}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	dbLevels := make(map[string]int) // Empty - new player
 	analytics.checkLevelUp("NewPlayer", 100, "Antica", dbLevels, []string{"guild-1"})
@@ -347,7 +353,7 @@ func TestAnalytics_CheckLevelUp_LevelIncrease(t *testing.T) {
 	}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	dbLevels := map[string]int{"TestPlayer": 100}
 	analytics.checkLevelUp("TestPlayer", 101, "Antica", dbLevels, []string{"guild-1"})
@@ -376,7 +382,7 @@ func TestAnalytics_CheckLevelUp_SameLevel(t *testing.T) {
 	}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	dbLevels := map[string]int{"TestPlayer": 100}
 	analytics.checkLevelUp("TestPlayer", 100, "Antica", dbLevels, []string{"guild-1"})
@@ -400,7 +406,7 @@ func TestAnalytics_CheckLevelUp_StorageError(t *testing.T) {
 	}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	dbLevels := map[string]int{"TestPlayer": 100}
 	analytics.checkLevelUp("TestPlayer", 101, "Antica", dbLevels, []string{"guild-1"})
@@ -428,7 +434,7 @@ func TestAnalytics_ProcessCharacter(t *testing.T) {
 	}
 	mockNotif := &mockNotifier{}
 
-	analytics := NewAnalytics(storage, mockNotif)
+	analytics := NewAnalytics(testConfig, storage, mockNotif)
 
 	char := &tibiadata.CharacterResponse{
 		Character: struct {

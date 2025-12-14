@@ -19,7 +19,7 @@ GOMOD := $(GO) mod
 # Docker Compose
 DOCKER_COMPOSE := docker-compose
 DEV_SERVICE := dev
-BOT_SERVICE := bot
+BOT_SERVICE := bot prometheus grafana
 MIGRATE_SERVICE := migrate
 
 # Build flags
@@ -148,7 +148,7 @@ dev-coverage: ## Run coverage in Docker (usage: make dev-coverage [death-level-t
 		$(DOCKER_COMPOSE) exec -T $(DEV_SERVICE) sh -c 'go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out')
 
 dev-sqlc: ## Generate code in Docker
-	$(DOCKER_COMPOSE) exec -T $(DEV_SERVICE) sqlc generate
+	$(DOCKER_COMPOSE) exec -T $(DEV_SERVICE) sqlc generate -f config/sqlc.yaml
 
 # ============================================================================
 # Docker Production

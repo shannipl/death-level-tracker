@@ -12,6 +12,7 @@
 #    - VPS_USER: SSH username (e.g., root)
 #    - VPS_SSH_KEY: Private SSH key for authentication
 #    - VPS_PORT: SSH port (usually 22)
+#    - DISCORD_TOKEN: Your Discord bot token
 #    - GRAFANA_PASSWORD: Grafana admin password (for monitoring dashboard)
 #
 # =============================================================================
@@ -83,7 +84,11 @@ jobs:
             mkdir -p secrets
             
             # Inject secrets from GitHub Actions
-            echo '${{ secrets.GRAFANA_PASSWORD }}' > secrets/grafana_password.txt
+            echo -n '${{ secrets.DISCORD_TOKEN }}' > secrets/discord_token.txt
+            chmod 600 secrets/discord_token.txt
+            
+            echo -n '${{ secrets.GRAFANA_PASSWORD }}' > secrets/grafana_password.txt
+            chmod 600 secrets/grafana_password.txt
             
             git pull origin master
             docker compose down

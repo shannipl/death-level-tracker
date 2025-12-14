@@ -26,6 +26,10 @@ MIGRATE_SERVICE := migrate
 LDFLAGS := -w -s
 BUILD_FLAGS := CGO_ENABLED=0 $(GOBUILD) -ldflags="$(LDFLAGS)"
 
+# Helper variables for string manipulation
+comma := ,
+space := $(subst ,, )
+
 # ============================================================================
 # PHONY Targets
 # ============================================================================
@@ -74,21 +78,22 @@ lint: vet ## Run linters (alias for vet)
 # Testing & Coverage
 # ============================================================================
 
+# Packages to include in coverage (excludes sqlc-generated code)
+COVER_PKGS := ./cmd/... ./internal/config/... ./internal/formatting/... ./internal/handlers/... ./internal/tracker/... ./internal/tibiadata/...
+
 test: ## Run tests (usage: make test [death-level-tracker/internal/config])
 	@$(if $(filter-out $@,$(MAKECMDGOALS)), \
 		$(GOTEST) -v $(filter-out $@,$(MAKECMDGOALS)), \
 		$(GOTEST) -v ./...)
 
-coverage: ## Run coverage (usage: make coverage [death-level-tracker/internal/tracker])
-	@$(if $(filter-out $@,$(MAKECMDGOALS)), \
-		$(GOTEST) -coverprofile=$(COVERAGE_FILE) $(filter-out $@,$(MAKECMDGOALS)) && \
-		$(GO) tool cover -func=$(COVERAGE_FILE) && rm $(COVERAGE_FILE), \
-		$(GOTEST) -coverprofile=$(COVERAGE_FILE) ./... && \
-		$(GO) tool cover -func=$(COVERAGE_FILE) && rm $(COVERAGE_FILE))
+coverage: ## Run coverage (excludes sqlc-generated files)
+	@$(GOTEST) -coverprofile=$(COVERAGE_FILE) -coverpkg=$(subst $(space),$(comma),$(COVER_PKGS)) ./...
+	@$(GO) tool cover -func=$(COVERAGE_FILE)
+	@rm $(COVERAGE_FILE)
 
-coverage-html: ## Generate HTML coverage report
+coverage-html: ## Generate HTML coverage report (excludes sqlc-generated files)
 	@echo "Generating HTML coverage report..."
-	@$(GOTEST) -coverprofile=$(COVERAGE_FILE) ./...
+	@$(GOTEST) -coverprofile=$(COVERAGE_FILE) -coverpkg=$(subst $(space),$(comma),$(COVER_PKGS)) ./...
 	@$(GO) tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
 	@echo "Coverage report: $(COVERAGE_HTML)"
 

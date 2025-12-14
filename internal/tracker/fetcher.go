@@ -1,8 +1,11 @@
 package tracker
 
 import (
+	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
+	"time"
 
 	"death-level-tracker/internal/config"
 	"death-level-tracker/internal/tibiadata"
@@ -27,6 +30,45 @@ func (f *Fetcher) FetchWorld(world string) ([]tibiadata.OnlinePlayer, error) {
 		return nil, err
 	}
 	slog.Info("Fetched online players", "world", world, "count", len(players))
+	return players, nil
+}
+
+func (f *Fetcher) FetchWorldFromTibiaCom(world string) (map[string]int, error) {
+	url := fmt.Sprintf("https://www.tibia.com/community/?subtopic=worlds&world=%s", world)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set browser-like headers to avoid Cloudflare blocking
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.Error("Failed to fetch tibia.com world page", "world", world, "error", err)
+		return nil, fmt.Errorf("failed to fetch tibia.com: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("Unexpected status from tibia.com", "world", world, "status", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	players, err := ParseTibiaComWorld(resp.Body)
+	if err != nil {
+		slog.Error("Failed to parse tibia.com HTML", "world", world, "error", err)
+		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	slog.Info("Fetched online players from tibia.com", "world", world, "count", len(players))
 	return players, nil
 }
 

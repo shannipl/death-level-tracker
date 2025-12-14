@@ -229,7 +229,23 @@ MIN_LEVEL_TRACK=500
 WORKER_POOL_SIZE=10
 DISCORD_CHANNEL_DEATH=death-tracker
 DISCORD_CHANNEL_LEVEL=level-tracker
+USE_TIBIACOM_FOR_LEVELS=true  # Use tibia.com for level tracking (default: true)
 ```
+
+#### Data Source Configuration
+
+**USE_TIBIACOM_FOR_LEVELS** controls which data source is used for level tracking:
+
+- `true` (default) — Fetches online player levels from tibia.com HTML
+  - Reduces TibiaData API calls significantly (1 request per world vs hundreds)
+  - Still uses TibiaData for death tracking (requires detailed character info)
+  - Automatically falls back to TibiaData if tibia.com fails
+  
+- `false` — Uses TibiaData API exclusively
+  - All data (levels + deaths) comes from TibiaData API
+  - More API calls but simpler data flow
+
+**Offline players** always use TibiaData API regardless of this setting.
 
 ### Docker Secrets (Recommended for Production)
 
@@ -263,6 +279,7 @@ Configuration is validated on startup:
 - **MIN_LEVEL_TRACK**: ≥1 (no upper limit)
 - **WORKER_POOL_SIZE**: 1 to 100
 - **Channel names**: 1 to 100 characters (Discord limit)
+- **USE_TIBIACOM_FOR_LEVELS**: Boolean (true/false)
 
 ---
 

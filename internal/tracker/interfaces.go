@@ -30,6 +30,7 @@ type Notifier interface {
 // FetcherInterface defines methods for fetching world and character data
 type FetcherInterface interface {
 	FetchWorld(world string) ([]tibiadata.OnlinePlayer, error)
+	FetchWorldFromTibiaCom(world string) (map[string]int, error)
 	FetchCharacterDetails(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse
 }
 

@@ -78,6 +78,10 @@ func TestService_RunLoop_Success(t *testing.T) {
 		fetchWorldFunc: func(world string) ([]tibiadata.OnlinePlayer, error) {
 			return []tibiadata.OnlinePlayer{}, nil
 		},
+		fetchWorldFromTibiaComFunc: func(world string) (map[string]int, error) {
+			// Return empty map for tests - tests can override if needed
+			return make(map[string]int), nil
+		},
 		fetchCharacterDetailsFunc: func(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse {
 			results := make(chan *tibiadata.CharacterResponse)
 			close(results)

@@ -37,29 +37,15 @@ make up
 
 **For detailed development instructions, see [CHEATSHEET.md](CHEATSHEET.md).**
 
-## Architecture
+### Data Sources
 
-```
-┌─────────────────┐     ┌───────────────────────┐     ┌─────────────────┐
-│  Discord API    │◄────│   Death Level Tracker │────►│  TibiaData API  │
-│  (discordgo)    │     │     (Go 1.25+)        │     │  (REST client)  │
-└─────────────────┘     └────────┬──────────────┘     └─────────────────┘
-                                 │
-                        ┌────────▼─────────┐
-                        │   PostgreSQL     │
-                        │  (player data)   │
-                        └──────────────────┘
-                                 │
-                        ┌────────▼─────────┐
-                        │   Prometheus     │◄────┐
-                        │  (metrics TSDB)  │     │
-                        └────────┬─────────┘     │
-                                 │               │
-                        ┌────────▼─────────┐     │
-                        │     Grafana      │     │
-                        │  (visualization) │─────┘
-                        └──────────────────┘
-```
+The tracker uses two complementary data sources for optimal performance:
+
+- **Tibia.com HTML** (default) — Fetches all online player levels in a single request per world
+- **TibiaData API** — Used for death tracking (requires detailed character information)
+- **Offline players** — Always use TibiaData API for both levels and deaths
+
+This hybrid approach minimizes API calls while maintaining full functionality.
 
 ### Key Components
 
@@ -96,7 +82,13 @@ MIN_LEVEL_TRACK=500           # Minimum level to track
 WORKER_POOL_SIZE=10           # Concurrent workers (1-100)
 DISCORD_CHANNEL_DEATH=death-tracker
 DISCORD_CHANNEL_LEVEL=level-tracker
+USE_TIBIACOM_FOR_LEVELS=true  # Use tibia.com HTML for level tracking (default: true)
 ```
+
+#### Data Source Selection
+
+- `USE_TIBIACOM_FOR_LEVELS=true` (default) — Fetches online player levels from tibia.com HTML, reducing TibiaData API calls
+- `USE_TIBIACOM_FOR_LEVELS=false` — Uses TibiaData API exclusively for both levels and deaths
 
 See [CHEATSHEET.md](CHEATSHEET.md#configuration) for validation rules and details.
 

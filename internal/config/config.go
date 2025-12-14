@@ -11,12 +11,13 @@ import (
 )
 
 type Config struct {
-	Token               string
-	TrackerInterval     time.Duration
-	MinLevelTrack       int
-	DiscordChannelDeath string
-	DiscordChannelLevel string
-	WorkerPoolSize      int
+	Token                string
+	TrackerInterval      time.Duration
+	MinLevelTrack        int
+	DiscordChannelDeath  string
+	DiscordChannelLevel  string
+	WorkerPoolSize       int
+	UseTibiaComForLevels bool
 }
 
 func Load() (*Config, error) {
@@ -32,12 +33,13 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Token:               token,
-		TrackerInterval:     getEnvDuration("TRACKER_INTERVAL", 5*time.Minute),
-		MinLevelTrack:       getEnvInt("MIN_LEVEL_TRACK", 500),
-		DiscordChannelDeath: getEnvString("DISCORD_CHANNEL_DEATH", "death-tracker"),
-		DiscordChannelLevel: getEnvString("DISCORD_CHANNEL_LEVEL", "level-tracker"),
-		WorkerPoolSize:      getEnvInt("WORKER_POOL_SIZE", 10),
+		Token:                token,
+		TrackerInterval:      getEnvDuration("TRACKER_INTERVAL", 5*time.Minute),
+		MinLevelTrack:        getEnvInt("MIN_LEVEL_TRACK", 500),
+		DiscordChannelDeath:  getEnvString("DISCORD_CHANNEL_DEATH", "death-tracker"),
+		DiscordChannelLevel:  getEnvString("DISCORD_CHANNEL_LEVEL", "level-tracker"),
+		WorkerPoolSize:       getEnvInt("WORKER_POOL_SIZE", 10),
+		UseTibiaComForLevels: getEnvBool("USE_TIBIACOM_FOR_LEVELS", true),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -76,6 +78,15 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			return d
+		}
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
 		}
 	}
 	return fallback

@@ -20,6 +20,7 @@ services:
       - MIN_LEVEL_TRACK=${MIN_LEVEL_TRACK:-500}
       - DISCORD_CHANNEL_DEATH=${DISCORD_CHANNEL_DEATH:-death-tracker}
       - DISCORD_CHANNEL_LEVEL=${DISCORD_CHANNEL_LEVEL:-level-tracker}
+      - USE_TIBIACOM_FOR_LEVELS=${USE_TIBIACOM_FOR_LEVELS:-true}
       - TZ=Europe/Warsaw
     secrets:
       - discord_token

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"death-level-tracker/internal/config"
 	"death-level-tracker/internal/storage"
 	"death-level-tracker/internal/tibiadata"
 )
@@ -291,8 +292,9 @@ func TestService_ProcessWorld_Success(t *testing.T) {
 	}
 
 	service := &Service{
-		fetcher:   mockFetcher,
+		config:    &config.Config{UseTibiaComForLevels: false},
 		storage:   mockStorage,
+		fetcher:   mockFetcher,
 		analytics: mockAnalytics,
 	}
 
@@ -323,19 +325,22 @@ func TestService_ProcessWorld_FetchWorldError(t *testing.T) {
 	mockStorage := &mockServiceStorage{
 		getPlayersLevelsFunc: func(ctx context.Context, world string) (map[string]int, error) {
 			levelsFetchCalled = true
-			return nil, nil
+			return map[string]int{}, nil
 		},
 	}
 
 	service := &Service{
+		config:  &config.Config{UseTibiaComForLevels: false},
 		fetcher: mockFetcher,
 		storage: mockStorage,
 	}
 
 	service.processWorld("Antica", []string{"guild-1"})
 
-	if levelsFetchCalled {
-		t.Error("Expected GetPlayersLevels NOT to be called after fetch error")
+	// With the new implementation, fetchPlayerLevels is called FIRST
+	// So it should be called even if fetchWorld fails later
+	if !levelsFetchCalled {
+		t.Error("Expected GetPlayersLevels to be called before FetchWorld")
 	}
 }
 
@@ -361,6 +366,7 @@ func TestService_ProcessWorld_FetchLevelsError(t *testing.T) {
 	}
 
 	service := &Service{
+		config:  &config.Config{UseTibiaComForLevels: false},
 		fetcher: mockFetcher,
 		storage: mockStorage,
 	}
@@ -431,8 +437,9 @@ func (m *mockServiceStorage) GetOfflinePlayers(ctx context.Context, world string
 func (m *mockServiceStorage) Close() {}
 
 type mockServiceFetcher struct {
-	fetchWorldFunc            func(world string) ([]tibiadata.OnlinePlayer, error)
-	fetchCharacterDetailsFunc func(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse
+	fetchWorldFunc             func(world string) ([]tibiadata.OnlinePlayer, error)
+	fetchCharacterDetailsFunc  func(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse
+	fetchWorldFromTibiaComFunc func(world string) (map[string]int, error)
 }
 
 func (m *mockServiceFetcher) FetchWorld(world string) ([]tibiadata.OnlinePlayer, error) {
@@ -440,6 +447,14 @@ func (m *mockServiceFetcher) FetchWorld(world string) ([]tibiadata.OnlinePlayer,
 		return m.fetchWorldFunc(world)
 	}
 	return nil, nil
+}
+
+func (m *mockServiceFetcher) FetchWorldFromTibiaCom(world string) (map[string]int, error) {
+	if m.fetchWorldFromTibiaComFunc != nil {
+		return m.fetchWorldFromTibiaComFunc(world)
+	}
+	// Return empty map for tests - tests can override if needed
+	return make(map[string]int), nil
 }
 
 func (m *mockServiceFetcher) FetchCharacterDetails(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse {
@@ -511,6 +526,7 @@ func TestService_ProcessOfflinePlayers_Success(t *testing.T) {
 	}
 
 	service := &Service{
+		config:    &config.Config{UseTibiaComForLevels: false}, // Disable tibia.com for this test
 		storage:   mockStorage,
 		fetcher:   mockFetcher,
 		analytics: mockAnalytics,
@@ -618,6 +634,7 @@ func TestService_ProcessOfflinePlayers_ConvertsToOnlinePlayerFormat(t *testing.T
 	}
 
 	service := &Service{
+		config:    &config.Config{UseTibiaComForLevels: false},
 		storage:   mockStorage,
 		fetcher:   mockFetcher,
 		analytics: &mockServiceAnalytics{},

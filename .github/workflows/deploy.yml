@@ -76,7 +76,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            cd /opt/death-level-tracker
+            cd ~/death-level-tracker
             git pull origin master
             docker compose down
             docker compose up -d --build

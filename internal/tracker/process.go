@@ -141,6 +141,8 @@ func (s *Service) processLevelsFromTibiaCom(tibiaComLevels map[string]int, world
 			if err := s.storage.UpsertPlayerLevel(context.Background(), name, currentLevel, world); err != nil {
 				slog.Error("Failed to upsert player level", "name", name, "error", err)
 			}
+			// Update in-memory map to prevent stale data if processed again in this cycle
+			dbLevels[name] = currentLevel
 		}
 
 		if exists && currentLevel > savedLevel {

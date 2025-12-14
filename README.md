@@ -81,7 +81,7 @@ echo "your_discord_bot_token" > secrets/discord_token.txt
 TRACKER_INTERVAL=5m           # Polling interval (1m-24h)
 MIN_LEVEL_TRACK=500           # Minimum level to track
 WORKER_POOL_SIZE=10           # Concurrent workers (1-100)
-DISCORD_CHANNEL_DEATH=death-level-tracker
+DISCORD_CHANNEL_DEATH=death-tracker
 DISCORD_CHANNEL_LEVEL=level-tracker
 ```
 

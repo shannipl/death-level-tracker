@@ -106,7 +106,7 @@ func createTestInteraction(guildID string, options []*discordgo.ApplicationComma
 
 func TestTrackWorld_Success(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -123,7 +123,7 @@ func TestTrackWorld_Success(t *testing.T) {
 		guildChannelsFunc: func(guildID string) ([]*discordgo.Channel, error) {
 			// Return existing channels (both already exist)
 			return []*discordgo.Channel{
-				{ID: "death-channel-id", Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildText},
+				{ID: "death-channel-id", Name: "death-tracker", Type: discordgo.ChannelTypeGuildText},
 				{ID: "level-channel-id", Name: "level-tracker", Type: discordgo.ChannelTypeGuildText},
 			}, nil
 		},
@@ -159,7 +159,7 @@ func TestTrackWorld_Success(t *testing.T) {
 	if mockSession.lastInteractionResponse == nil {
 		t.Fatal("Expected interaction response to be sent")
 	}
-	expectedMsg := formatting.MsgTrackSuccess("Antica", "death-level-tracker", "level-tracker")
+	expectedMsg := formatting.MsgTrackSuccess("Antica", "death-tracker", "level-tracker")
 	if mockSession.lastInteractionResponse.Data.Content != expectedMsg {
 		t.Errorf("Expected message '%s', got '%s'", expectedMsg, mockSession.lastInteractionResponse.Data.Content)
 	}
@@ -170,7 +170,7 @@ func TestTrackWorld_Success(t *testing.T) {
 
 func TestTrackWorld_MissingWorldName(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -207,7 +207,7 @@ func TestTrackWorld_MissingWorldName(t *testing.T) {
 
 func TestTrackWorld_ChannelCreation(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -245,8 +245,8 @@ func TestTrackWorld_ChannelCreation(t *testing.T) {
 	if len(channelsCreated) != 2 {
 		t.Fatalf("Expected 2 channels to be created, got %d", len(channelsCreated))
 	}
-	if channelsCreated[0] != "death-level-tracker" {
-		t.Errorf("Expected first channel 'death-level-tracker', got '%s'", channelsCreated[0])
+	if channelsCreated[0] != "death-tracker" {
+		t.Errorf("Expected first channel 'death-tracker', got '%s'", channelsCreated[0])
 	}
 	if channelsCreated[1] != "level-tracker" {
 		t.Errorf("Expected second channel 'level-tracker', got '%s'", channelsCreated[1])
@@ -255,7 +255,7 @@ func TestTrackWorld_ChannelCreation(t *testing.T) {
 
 func TestTrackWorld_ChannelError(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -283,7 +283,7 @@ func TestTrackWorld_ChannelError(t *testing.T) {
 	if mockSession.lastInteractionResponse == nil {
 		t.Fatal("Expected interaction response to be sent")
 	}
-	expectedMsg := formatting.MsgChannelError("death-level-tracker")
+	expectedMsg := formatting.MsgChannelError("death-tracker")
 	if mockSession.lastInteractionResponse.Data.Content != expectedMsg {
 		t.Errorf("Expected message '%s', got '%s'", expectedMsg, mockSession.lastInteractionResponse.Data.Content)
 	}
@@ -294,7 +294,7 @@ func TestTrackWorld_ChannelError(t *testing.T) {
 
 func TestTrackWorld_LevelChannelError(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -305,9 +305,9 @@ func TestTrackWorld_LevelChannelError(t *testing.T) {
 		guildChannelsFunc: func(guildID string) ([]*discordgo.Channel, error) {
 			callCount++
 			if callCount == 1 {
-				// First call for death-level-tracker - return existing channel
+				// First call for death-tracker - return existing channel
 				return []*discordgo.Channel{
-					{ID: "death-id", Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildText},
+					{ID: "death-id", Name: "death-tracker", Type: discordgo.ChannelTypeGuildText},
 				}, nil
 			}
 			// Second call for level-tracker - return error
@@ -342,7 +342,7 @@ func TestTrackWorld_LevelChannelError(t *testing.T) {
 
 func TestTrackWorld_ChannelCreationFailure(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -375,7 +375,7 @@ func TestTrackWorld_ChannelCreationFailure(t *testing.T) {
 	if mockSession.lastInteractionResponse == nil {
 		t.Fatal("Expected interaction response to be sent")
 	}
-	expectedMsg := formatting.MsgChannelError("death-level-tracker")
+	expectedMsg := formatting.MsgChannelError("death-tracker")
 	if mockSession.lastInteractionResponse.Data.Content != expectedMsg {
 		t.Errorf("Expected message '%s', got '%s'", expectedMsg, mockSession.lastInteractionResponse.Data.Content)
 	}
@@ -399,7 +399,7 @@ func TestTrackWorld_WorldNameFormatting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.Config{
-				DiscordChannelDeath: "death-level-tracker",
+				DiscordChannelDeath: "death-tracker",
 				DiscordChannelLevel: "level-tracker",
 			}
 
@@ -414,7 +414,7 @@ func TestTrackWorld_WorldNameFormatting(t *testing.T) {
 			mockSession := &mockDiscordSession{
 				guildChannelsFunc: func(guildID string) ([]*discordgo.Channel, error) {
 					return []*discordgo.Channel{
-						{Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildText},
+						{Name: "death-tracker", Type: discordgo.ChannelTypeGuildText},
 						{Name: "level-tracker", Type: discordgo.ChannelTypeGuildText},
 					}, nil
 				},
@@ -441,7 +441,7 @@ func TestTrackWorld_WorldNameFormatting(t *testing.T) {
 
 func TestTrackWorld_StorageError(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -454,7 +454,7 @@ func TestTrackWorld_StorageError(t *testing.T) {
 	mockSession := &mockDiscordSession{
 		guildChannelsFunc: func(guildID string) ([]*discordgo.Channel, error) {
 			return []*discordgo.Channel{
-				{Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildText},
+				{Name: "death-tracker", Type: discordgo.ChannelTypeGuildText},
 				{Name: "level-tracker", Type: discordgo.ChannelTypeGuildText},
 			}, nil
 		},
@@ -571,7 +571,7 @@ func TestReadyHandler(t *testing.T) {
 
 func TestBotHandler_Structure(t *testing.T) {
 	cfg := &config.Config{
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -590,8 +590,8 @@ func TestBotHandler_Structure(t *testing.T) {
 		t.Error("Expected Store to be set")
 	}
 
-	if handler.Config.DiscordChannelDeath != "death-level-tracker" {
-		t.Errorf("Expected DiscordChannelDeath 'death-level-tracker', got '%s'", handler.Config.DiscordChannelDeath)
+	if handler.Config.DiscordChannelDeath != "death-tracker" {
+		t.Errorf("Expected DiscordChannelDeath 'death-tracker', got '%s'", handler.Config.DiscordChannelDeath)
 	}
 
 	if handler.Config.DiscordChannelLevel != "level-tracker" {

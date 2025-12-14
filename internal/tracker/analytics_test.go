@@ -224,8 +224,8 @@ func TestAnalytics_NotifyDeath(t *testing.T) {
 		if msg.guildID != guilds[i] {
 			t.Errorf("Expected guild ID '%s', got '%s'", guilds[i], msg.guildID)
 		}
-		if msg.channel != "death-level-tracker" {
-			t.Errorf("Expected channel 'death-level-tracker', got '%s'", msg.channel)
+		if msg.channel != "death-tracker" {
+			t.Errorf("Expected channel 'death-tracker', got '%s'", msg.channel)
 		}
 		if !strings.Contains(msg.content, "TestPlayer") {
 			t.Errorf("Expected content to contain player name")

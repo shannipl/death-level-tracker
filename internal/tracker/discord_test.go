@@ -50,7 +50,7 @@ func TestDiscordNotifier_Send_Success(t *testing.T) {
 	session := &mockDiscordSession{
 		guildChannelsFunc: func(guildID string, options ...discordgo.RequestOption) ([]*discordgo.Channel, error) {
 			return []*discordgo.Channel{
-				{ID: "channel-123", Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildText},
+				{ID: "channel-123", Name: "death-tracker", Type: discordgo.ChannelTypeGuildText},
 			}, nil
 		},
 		channelMessageSendFunc: func(channelID, content string, options ...discordgo.RequestOption) (*discordgo.Message, error) {
@@ -61,7 +61,7 @@ func TestDiscordNotifier_Send_Success(t *testing.T) {
 	}
 
 	notifier := NewDiscordNotifier(session)
-	notifier.Send("guild-1", "death-level-tracker", "Test death message")
+	notifier.Send("guild-1", "death-tracker", "Test death message")
 
 	if sentChannelID != "channel-123" {
 		t.Errorf("Expected channel ID 'channel-123', got '%s'", sentChannelID)
@@ -112,7 +112,7 @@ func TestDiscordNotifier_Send_GetChannelError(t *testing.T) {
 	notifier := NewDiscordNotifier(session)
 
 	// Should not panic, just log error
-	notifier.Send("guild-1", "death-level-tracker", "Test message")
+	notifier.Send("guild-1", "death-tracker", "Test message")
 }
 
 func TestDiscordNotifier_Send_SendMessageError_InvalidatesCache(t *testing.T) {
@@ -157,13 +157,13 @@ func TestDiscordNotifier_FetchChannelID_Success(t *testing.T) {
 			return []*discordgo.Channel{
 				{ID: "voice-1", Name: "voice", Type: discordgo.ChannelTypeGuildVoice},
 				{ID: "text-1", Name: "general", Type: discordgo.ChannelTypeGuildText},
-				{ID: "text-2", Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildText},
+				{ID: "text-2", Name: "death-tracker", Type: discordgo.ChannelTypeGuildText},
 			}, nil
 		},
 	}
 
 	notifier := NewDiscordNotifier(session)
-	channelID, err := notifier.fetchChannelID("guild-1", "death-level-tracker")
+	channelID, err := notifier.fetchChannelID("guild-1", "death-tracker")
 
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -214,14 +214,14 @@ func TestDiscordNotifier_FetchChannelID_IgnoresNonTextChannels(t *testing.T) {
 	session := &mockDiscordSession{
 		guildChannelsFunc: func(guildID string, options ...discordgo.RequestOption) ([]*discordgo.Channel, error) {
 			return []*discordgo.Channel{
-				{ID: "voice-1", Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildVoice},
-				{ID: "text-1", Name: "death-level-tracker", Type: discordgo.ChannelTypeGuildText},
+				{ID: "voice-1", Name: "death-tracker", Type: discordgo.ChannelTypeGuildVoice},
+				{ID: "text-1", Name: "death-tracker", Type: discordgo.ChannelTypeGuildText},
 			}, nil
 		},
 	}
 
 	notifier := NewDiscordNotifier(session)
-	channelID, err := notifier.fetchChannelID("guild-1", "death-level-tracker")
+	channelID, err := notifier.fetchChannelID("guild-1", "death-tracker")
 
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -241,7 +241,7 @@ func TestDiscordNotifier_BuildCacheKey(t *testing.T) {
 		channelName string
 		expected    string
 	}{
-		{"guild-1", "death-level-tracker", "guild-1:death-level-tracker"},
+		{"guild-1", "death-tracker", "guild-1:death-tracker"},
 		{"guild-2", "level-tracker", "guild-2:level-tracker"},
 		{"", "channel", ":channel"},
 	}

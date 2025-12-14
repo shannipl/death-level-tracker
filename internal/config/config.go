@@ -35,7 +35,7 @@ func Load() (*Config, error) {
 		Token:               token,
 		TrackerInterval:     getEnvDuration("TRACKER_INTERVAL", 5*time.Minute),
 		MinLevelTrack:       getEnvInt("MIN_LEVEL_TRACK", 500),
-		DiscordChannelDeath: getEnvString("DISCORD_CHANNEL_DEATH", "death-level-tracker"),
+		DiscordChannelDeath: getEnvString("DISCORD_CHANNEL_DEATH", "death-tracker"),
 		DiscordChannelLevel: getEnvString("DISCORD_CHANNEL_LEVEL", "level-tracker"),
 		WorkerPoolSize:      getEnvInt("WORKER_POOL_SIZE", 10),
 	}

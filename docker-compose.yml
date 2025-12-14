@@ -18,7 +18,7 @@ services:
       - TRACKER_INTERVAL=${TRACKER_INTERVAL:-5m}
       - WORKER_POOL_SIZE=${WORKER_POOL_SIZE:-10}
       - MIN_LEVEL_TRACK=${MIN_LEVEL_TRACK:-500}
-      - DISCORD_CHANNEL_DEATH=${DISCORD_CHANNEL_DEATH:-death-level-tracker}
+      - DISCORD_CHANNEL_DEATH=${DISCORD_CHANNEL_DEATH:-death-tracker}
       - DISCORD_CHANNEL_LEVEL=${DISCORD_CHANNEL_LEVEL:-level-tracker}
       - TZ=Europe/Warsaw
     secrets:

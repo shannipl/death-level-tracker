@@ -217,7 +217,7 @@ Create `.env` file for non-sensitive config:
 TRACKER_INTERVAL=5m
 MIN_LEVEL_TRACK=500
 WORKER_POOL_SIZE=10
-DISCORD_CHANNEL_DEATH=death-level-tracker
+DISCORD_CHANNEL_DEATH=death-tracker
 DISCORD_CHANNEL_LEVEL=level-tracker
 ```
 

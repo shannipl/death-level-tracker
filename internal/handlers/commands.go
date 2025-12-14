@@ -39,7 +39,7 @@ func (h *BotHandler) TrackWorld(s DiscordSession, i *discordgo.InteractionCreate
 	}
 
 	if _, err := ensureChannel(s, i.GuildID, h.Config.DiscordChannelDeath); err != nil {
-		slog.Error("Failed to ensure death-level-tracker channel", "error", err)
+		slog.Error("Failed to ensure death-tracker channel", "error", err)
 		respond(s, i, formatting.MsgChannelError(h.Config.DiscordChannelDeath), true)
 		return
 	}

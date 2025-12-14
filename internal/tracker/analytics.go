@@ -97,7 +97,7 @@ func (a *Analytics) notifyDeath(guilds []string, name string, death tibiadata.De
 	content := formatting.MsgDeath(name, timeStr, death.Reason)
 
 	for _, guildID := range guilds {
-		a.notifier.Send(guildID, "death-level-tracker", content)
+		a.notifier.Send(guildID, "death-tracker", content)
 	}
 }
 

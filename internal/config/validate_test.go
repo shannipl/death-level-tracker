@@ -12,7 +12,7 @@ func TestConfig_Validate_ValidConfig(t *testing.T) {
 		TrackerInterval:     5 * time.Minute,
 		MinLevelTrack:       500,
 		WorkerPoolSize:      10,
-		DiscordChannelDeath: "death-level-tracker",
+		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
 
@@ -39,7 +39,7 @@ func TestConfig_Validate_Token(t *testing.T) {
 				TrackerInterval:     5 * time.Minute,
 				MinLevelTrack:       500,
 				WorkerPoolSize:      10,
-				DiscordChannelDeath: "death-level-tracker",
+				DiscordChannelDeath: "death-tracker",
 				DiscordChannelLevel: "level-tracker",
 			}
 
@@ -71,7 +71,7 @@ func TestConfig_Validate_TrackerInterval(t *testing.T) {
 				TrackerInterval:     tt.interval,
 				MinLevelTrack:       500,
 				WorkerPoolSize:      10,
-				DiscordChannelDeath: "death-level-tracker",
+				DiscordChannelDeath: "death-tracker",
 				DiscordChannelLevel: "level-tracker",
 			}
 
@@ -104,7 +104,7 @@ func TestConfig_Validate_MinLevelTrack(t *testing.T) {
 				TrackerInterval:     5 * time.Minute,
 				MinLevelTrack:       tt.level,
 				WorkerPoolSize:      10,
-				DiscordChannelDeath: "death-level-tracker",
+				DiscordChannelDeath: "death-tracker",
 				DiscordChannelLevel: "level-tracker",
 			}
 
@@ -137,7 +137,7 @@ func TestConfig_Validate_WorkerPoolSize(t *testing.T) {
 				TrackerInterval:     5 * time.Minute,
 				MinLevelTrack:       500,
 				WorkerPoolSize:      tt.size,
-				DiscordChannelDeath: "death-level-tracker",
+				DiscordChannelDeath: "death-tracker",
 				DiscordChannelLevel: "level-tracker",
 			}
 
@@ -156,12 +156,12 @@ func TestConfig_Validate_ChannelNames(t *testing.T) {
 		levelChan string
 		wantErr   bool
 	}{
-		{"both valid", "death-level-tracker", "level-tracker", false},
+		{"both valid", "death-tracker", "level-tracker", false},
 		{"empty death channel", "", "level-tracker", true},
-		{"empty level channel", "death-level-tracker", "", true},
+		{"empty level channel", "death-tracker", "", true},
 		{"both empty", "", "", true},
 		{"death too long", strings.Repeat("a", 101), "level-tracker", true},
-		{"level too long", "death-level-tracker", strings.Repeat("a", 101), true},
+		{"level too long", "death-tracker", strings.Repeat("a", 101), true},
 		{"max length valid", strings.Repeat("a", 100), strings.Repeat("b", 100), false},
 	}
 

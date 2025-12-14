@@ -56,8 +56,8 @@ func TestLoad_WithDefaults(t *testing.T) {
 	if cfg.MinLevelTrack != 500 {
 		t.Errorf("Expected default MinLevelTrack=500, got %d", cfg.MinLevelTrack)
 	}
-	if cfg.DiscordChannelDeath != "death-level-tracker" {
-		t.Errorf("Expected default DiscordChannelDeath='death-level-tracker', got '%s'", cfg.DiscordChannelDeath)
+	if cfg.DiscordChannelDeath != "death-tracker" {
+		t.Errorf("Expected default DiscordChannelDeath='death-tracker', got '%s'", cfg.DiscordChannelDeath)
 	}
 	if cfg.DiscordChannelLevel != "level-tracker" {
 		t.Errorf("Expected default DiscordChannelLevel='level-tracker', got '%s'", cfg.DiscordChannelLevel)

@@ -155,8 +155,8 @@ func TestMsgChannelError(t *testing.T) {
 	}{
 		{
 			name:        "standard channel name",
-			channelName: "death-level-tracker",
-			expected:    "Failed to create or find #death-level-tracker channel.",
+			channelName: "death-tracker",
+			expected:    "Failed to create or find #death-tracker channel.",
 		},
 		{
 			name:        "channel with numbers",
@@ -196,9 +196,9 @@ func TestMsgTrackSuccess(t *testing.T) {
 		{
 			name:      "standard tracking message",
 			world:     "Antica",
-			deathChan: "death-level-tracker",
+			deathChan: "death-tracker",
 			levelChan: "level-tracker",
-			expected:  "Tracking world **Antica** configured! Notifications will appear in #death-level-tracker and #level-tracker.",
+			expected:  "Tracking world **Antica** configured! Notifications will appear in #death-tracker and #level-tracker.",
 		},
 		{
 			name:      "different world",

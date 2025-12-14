@@ -1,0 +1,95 @@
+# =============================================================================
+# Docker Compose - Death Level Tracker
+# Production and development environment configuration
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Production Bot Service
+  # ===========================================================================
+  bot:
+    container_name: death-level-tracker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://tracker:tracker_password@postgres:5432/death_level_tracker?sslmode=disable
+      - TRACKER_INTERVAL=${TRACKER_INTERVAL:-5m}
+      - WORKER_POOL_SIZE=${WORKER_POOL_SIZE:-10}
+      - MIN_LEVEL_TRACK=${MIN_LEVEL_TRACK:-500}
+      - DISCORD_CHANNEL_DEATH=${DISCORD_CHANNEL_DEATH:-death-level-tracker}
+      - DISCORD_CHANNEL_LEVEL=${DISCORD_CHANNEL_LEVEL:-level-tracker}
+      - TZ=Europe/Warsaw
+    secrets:
+      - discord_token
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ===========================================================================
+  # Development Environment
+  # ===========================================================================
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgres://tracker:tracker_password@postgres:5432/death_level_tracker?sslmode=disable
+      - GOCACHE=/tmp/gocache
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Database Migration Service
+  # ===========================================================================
+  migrate:
+    image: arigaio/atlas:latest-alpine
+    command:
+      - migrate
+      - apply
+      - --url
+      - postgres://tracker:tracker_password@postgres:5432/death_level_tracker?sslmode=disable
+      - --dir
+      - file:///sql/migrations
+    volumes:
+      - ./sql:/sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: death-level-tracker-db
+    environment:
+      POSTGRES_USER: tracker
+      POSTGRES_PASSWORD: tracker_password
+      POSTGRES_DB: death_level_tracker
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U tracker -d death_level_tracker" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init_dev_db.sql:/docker-entrypoint-initdb.d/init_dev_db.sql
+    restart: unless-stopped
+
+# =============================================================================
+# Docker Secrets
+# =============================================================================
+secrets:
+  discord_token:
+    file: ./secrets/discord_token.txt
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:

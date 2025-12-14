@@ -1,0 +1,15 @@
+FROM golang:1.25.5-alpine
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache git make curl
+
+# Install sqlc
+RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+# Install golangci-lint
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4
+
+# Keep the container running
+CMD ["tail", "-f", "/dev/null"]

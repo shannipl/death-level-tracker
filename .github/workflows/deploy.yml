@@ -1,0 +1,115 @@
+# =============================================================================
+# Deploy Pipeline - Death Level Tracker
+# Deploys to VPS after manual approval
+# =============================================================================
+#
+# SETUP REQUIRED:
+# 1. Go to GitHub repo → Settings → Environments → New environment
+# 2. Name it "production"
+# 3. Add yourself as required reviewer
+# 4. Add these secrets to the environment:
+#    - VPS_HOST: your server IP or hostname
+#    - VPS_USER: SSH username (e.g., root or deploy)
+#    - VPS_SSH_KEY: Private SSH key for authentication
+#    - VPS_PORT: SSH port (usually 22)
+#
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Manual trigger
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ===========================================================================
+  # Build Docker Image
+  # ===========================================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: death-level-tracker:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Manual Approval Gate
+  # ===========================================================================
+  approval:
+    name: Await Approval
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production  # Requires approval in GitHub
+
+    steps:
+      - name: Deployment approved
+        run: echo "✅ Deployment approved by ${{ github.actor }}"
+
+  # ===========================================================================
+  # Deploy to VPS
+  # ===========================================================================
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: approval
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------
+      # UNCOMMENT AND CONFIGURE WHEN READY TO DEPLOY
+      # -----------------------------------------------------------------
+
+      # Option 1: SSH and docker-compose
+      # - name: Deploy via SSH
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.VPS_HOST }}
+      #     username: ${{ secrets.VPS_USER }}
+      #     key: ${{ secrets.VPS_SSH_KEY }}
+      #     port: ${{ secrets.VPS_PORT }}
+      #     script: |
+      #       cd /path/to/death-level-tracker
+      #       git pull origin main
+      #       docker-compose down
+      #       docker-compose up -d --build
+      #       docker-compose logs -f --tail=50 bot
+
+      # Option 2: Copy files and restart
+      # - name: Copy files to VPS
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.VPS_HOST }}
+      #     username: ${{ secrets.VPS_USER }}
+      #     key: ${{ secrets.VPS_SSH_KEY }}
+      #     port: ${{ secrets.VPS_PORT }}
+      #     source: "."
+      #     target: "/opt/death-level-tracker"
+
+      - name: Deployment placeholder
+        run: |
+          echo "🚀 Deploy workflow triggered"
+          echo "📦 Commit: ${{ github.sha }}"
+          echo "👤 Actor: ${{ github.actor }}"
+          echo ""
+          echo "⚠️  Actual deployment is not configured yet."
+          echo "📝 Edit .github/workflows/deploy.yml to add your VPS credentials."

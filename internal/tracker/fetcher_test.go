@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"death-level-tracker/internal/config"
@@ -116,11 +117,14 @@ func TestFetcher_FetchCharacterDetails_Success(t *testing.T) {
 		{Name: "Player2", Level: 150},
 	}
 
+	var mu sync.Mutex
 	fetchedNames := make(map[string]bool)
 
 	mockClient := &mockTibiaDataClient{
 		getCharacterFunc: func(name string) (*tibiadata.CharacterResponse, error) {
+			mu.Lock()
 			fetchedNames[name] = true
+			mu.Unlock()
 			return &tibiadata.CharacterResponse{
 				Character: struct {
 					Character tibiadata.CharacterInfo `json:"character"`
@@ -157,9 +161,11 @@ func TestFetcher_FetchCharacterDetails_Success(t *testing.T) {
 		t.Errorf("Expected 2 character responses, got %d", count)
 	}
 
+	mu.Lock()
 	if !fetchedNames["Player1"] || !fetchedNames["Player2"] {
 		t.Error("Expected both players to be fetched")
 	}
+	mu.Unlock()
 }
 
 func TestFetcher_FetchCharacterDetails_FiltersByLevel(t *testing.T) {
@@ -168,11 +174,14 @@ func TestFetcher_FetchCharacterDetails_FiltersByLevel(t *testing.T) {
 		{Name: "HighLevel", Level: 200},
 	}
 
+	var mu sync.Mutex
 	fetchedNames := make(map[string]bool)
 
 	mockClient := &mockTibiaDataClient{
 		getCharacterFunc: func(name string) (*tibiadata.CharacterResponse, error) {
+			mu.Lock()
 			fetchedNames[name] = true
+			mu.Unlock()
 			return &tibiadata.CharacterResponse{}, nil
 		},
 	}
@@ -198,6 +207,8 @@ func TestFetcher_FetchCharacterDetails_FiltersByLevel(t *testing.T) {
 		t.Errorf("Expected 1 character response (filtered), got %d", count)
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
 	if fetchedNames["LowLevel"] {
 		t.Error("Expected LowLevel player to be filtered out")
 	}

@@ -8,6 +8,7 @@ import (
 
 	"death-level-tracker/internal/config"
 	"death-level-tracker/internal/formatting"
+	"death-level-tracker/internal/storage"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -50,6 +51,10 @@ func (m *mockStorage) BatchTouchPlayers(ctx context.Context, names []string) err
 
 func (m *mockStorage) DeleteOldPlayers(ctx context.Context, world string, threshold time.Duration) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockStorage) GetOfflinePlayers(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error) {
+	return nil, nil
 }
 
 func (m *mockStorage) Close() {}

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"death-level-tracker/internal/storage"
 	"death-level-tracker/internal/tibiadata"
 )
 
@@ -377,6 +378,7 @@ type mockServiceStorage struct {
 	getPlayersLevelsFunc  func(ctx context.Context, world string) (map[string]int, error)
 	batchTouchPlayersFunc func(ctx context.Context, names []string) error
 	deleteOldPlayersFunc  func(ctx context.Context, world string, threshold time.Duration) (int64, error)
+	getOfflinePlayersFunc func(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error)
 }
 
 func (m *mockServiceStorage) GetWorldsMap(ctx context.Context) (map[string][]string, error) {
@@ -419,6 +421,13 @@ func (m *mockServiceStorage) DeleteGuildConfig(ctx context.Context, guildID stri
 	return nil
 }
 
+func (m *mockServiceStorage) GetOfflinePlayers(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error) {
+	if m.getOfflinePlayersFunc != nil {
+		return m.getOfflinePlayersFunc(ctx, world, onlineNames)
+	}
+	return nil, nil
+}
+
 func (m *mockServiceStorage) Close() {}
 
 type mockServiceFetcher struct {
@@ -449,5 +458,182 @@ type mockServiceAnalytics struct {
 func (m *mockServiceAnalytics) ProcessCharacter(char *tibiadata.CharacterResponse, guilds []string, dbLevels map[string]int) {
 	if m.processCharacterFunc != nil {
 		m.processCharacterFunc(char, guilds, dbLevels)
+	}
+}
+
+// Tests for processOfflinePlayers
+func TestService_ProcessOfflinePlayers_Success(t *testing.T) {
+	offlinePlayers := []storage.OfflinePlayer{
+		{Name: "OfflinePlayer1", Level: 200},
+		{Name: "OfflinePlayer2", Level: 300},
+	}
+
+	processedCharacters := make(map[string]bool)
+
+	mockStorage := &mockServiceStorage{
+		getOfflinePlayersFunc: func(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error) {
+			if world != "Antica" {
+				t.Errorf("Expected world 'Antica', got '%s'", world)
+			}
+			return offlinePlayers, nil
+		},
+	}
+
+	mockFetcher := &mockServiceFetcher{
+		fetchCharacterDetailsFunc: func(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse {
+			if len(players) != 2 {
+				t.Errorf("Expected 2 offline players, got %d", len(players))
+			}
+			results := make(chan *tibiadata.CharacterResponse, len(players))
+			for _, p := range players {
+				results <- &tibiadata.CharacterResponse{
+					Character: struct {
+						Character tibiadata.CharacterInfo `json:"character"`
+						Deaths    []tibiadata.Death       `json:"deaths"`
+					}{
+						Character: tibiadata.CharacterInfo{
+							Name:  p.Name,
+							Level: p.Level,
+							World: "Antica",
+						},
+					},
+				}
+			}
+			close(results)
+			return results
+		},
+	}
+
+	mockAnalytics := &mockServiceAnalytics{
+		processCharacterFunc: func(char *tibiadata.CharacterResponse, guilds []string, dbLevels map[string]int) {
+			processedCharacters[char.Character.Character.Name] = true
+		},
+	}
+
+	service := &Service{
+		storage:   mockStorage,
+		fetcher:   mockFetcher,
+		analytics: mockAnalytics,
+	}
+
+	onlineNames := []string{"OnlinePlayer1"}
+	guilds := []string{"guild-1"}
+	dbLevels := map[string]int{"OfflinePlayer1": 200, "OfflinePlayer2": 300}
+
+	service.processOfflinePlayers("Antica", onlineNames, guilds, dbLevels)
+
+	if len(processedCharacters) != 2 {
+		t.Errorf("Expected 2 processed characters, got %d", len(processedCharacters))
+	}
+
+	if !processedCharacters["OfflinePlayer1"] {
+		t.Error("Expected OfflinePlayer1 to be processed")
+	}
+
+	if !processedCharacters["OfflinePlayer2"] {
+		t.Error("Expected OfflinePlayer2 to be processed")
+	}
+}
+
+func TestService_ProcessOfflinePlayers_NoOfflinePlayers(t *testing.T) {
+	fetchCalled := false
+
+	mockStorage := &mockServiceStorage{
+		getOfflinePlayersFunc: func(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error) {
+			return []storage.OfflinePlayer{}, nil // Empty list
+		},
+	}
+
+	mockFetcher := &mockServiceFetcher{
+		fetchCharacterDetailsFunc: func(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse {
+			fetchCalled = true
+			results := make(chan *tibiadata.CharacterResponse)
+			close(results)
+			return results
+		},
+	}
+
+	service := &Service{
+		storage: mockStorage,
+		fetcher: mockFetcher,
+	}
+
+	service.processOfflinePlayers("Antica", []string{"OnlinePlayer1"}, []string{"guild-1"}, map[string]int{})
+
+	if fetchCalled {
+		t.Error("Expected fetcher NOT to be called when no offline players")
+	}
+}
+
+func TestService_ProcessOfflinePlayers_StorageError(t *testing.T) {
+	fetchCalled := false
+
+	mockStorage := &mockServiceStorage{
+		getOfflinePlayersFunc: func(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error) {
+			return nil, errors.New("database error")
+		},
+	}
+
+	mockFetcher := &mockServiceFetcher{
+		fetchCharacterDetailsFunc: func(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse {
+			fetchCalled = true
+			results := make(chan *tibiadata.CharacterResponse)
+			close(results)
+			return results
+		},
+	}
+
+	service := &Service{
+		storage: mockStorage,
+		fetcher: mockFetcher,
+	}
+
+	service.processOfflinePlayers("Antica", []string{"OnlinePlayer1"}, []string{"guild-1"}, map[string]int{})
+
+	if fetchCalled {
+		t.Error("Expected fetcher NOT to be called on storage error")
+	}
+}
+
+func TestService_ProcessOfflinePlayers_ConvertsToOnlinePlayerFormat(t *testing.T) {
+	offlinePlayers := []storage.OfflinePlayer{
+		{Name: "TestPlayer", Level: 500},
+	}
+
+	var receivedPlayers []tibiadata.OnlinePlayer
+
+	mockStorage := &mockServiceStorage{
+		getOfflinePlayersFunc: func(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error) {
+			return offlinePlayers, nil
+		},
+	}
+
+	mockFetcher := &mockServiceFetcher{
+		fetchCharacterDetailsFunc: func(players []tibiadata.OnlinePlayer) <-chan *tibiadata.CharacterResponse {
+			receivedPlayers = players
+			results := make(chan *tibiadata.CharacterResponse)
+			close(results)
+			return results
+		},
+	}
+
+	service := &Service{
+		storage:   mockStorage,
+		fetcher:   mockFetcher,
+		analytics: &mockServiceAnalytics{},
+	}
+
+	service.processOfflinePlayers("Antica", []string{}, []string{"guild-1"}, map[string]int{})
+
+	if len(receivedPlayers) != 1 {
+		t.Fatalf("Expected 1 player, got %d", len(receivedPlayers))
+	}
+
+	if receivedPlayers[0].Name != "TestPlayer" {
+		t.Errorf("Expected name 'TestPlayer', got '%s'", receivedPlayers[0].Name)
+	}
+
+	if receivedPlayers[0].Level != 500 {
+		t.Errorf("Expected level 500, got %d", receivedPlayers[0].Level)
 	}
 }

@@ -22,5 +22,8 @@ UPDATE players SET updated_at = NOW() WHERE name = ANY(@names::text[]);
 -- name: DeleteOldPlayers :execresult
 DELETE FROM players WHERE world = $1 AND updated_at < NOW() - @threshold::interval;
 
+-- name: GetOfflinePlayers :many
+SELECT name, level FROM players WHERE world = $1 AND name != ALL(@online_names::text[]);
+
 -- name: DeleteGuildConfig :exec
 DELETE FROM guild_configs WHERE guild_id = $1;

@@ -15,11 +15,17 @@ type Storage interface {
 	SaveGuildWorld(ctx context.Context, guildID, world string) error
 	GetWorldsMap(ctx context.Context) (map[string][]string, error)
 	GetPlayersLevels(ctx context.Context, world string) (map[string]int, error)
+	GetOfflinePlayers(ctx context.Context, world string, onlineNames []string) ([]OfflinePlayer, error)
 	UpsertPlayerLevel(ctx context.Context, name string, level int, world string) error
 	BatchTouchPlayers(ctx context.Context, names []string) error
 	DeleteOldPlayers(ctx context.Context, world string, threshold time.Duration) (int64, error)
 	DeleteGuildConfig(ctx context.Context, guildID string) error
 	Close()
+}
+
+type OfflinePlayer struct {
+	Name  string
+	Level int
 }
 
 type PostgresStore struct {
@@ -107,6 +113,25 @@ func (s *PostgresStore) DeleteOldPlayers(ctx context.Context, world string, thre
 		return 0, err
 	}
 	return tag.RowsAffected(), nil
+}
+
+func (s *PostgresStore) GetOfflinePlayers(ctx context.Context, world string, onlineNames []string) ([]OfflinePlayer, error) {
+	rows, err := s.q.GetOfflinePlayers(ctx, db.GetOfflinePlayersParams{
+		World:       world,
+		OnlineNames: onlineNames,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]OfflinePlayer, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, OfflinePlayer{
+			Name:  row.Name,
+			Level: int(row.Level),
+		})
+	}
+	return result, nil
 }
 
 func (s *PostgresStore) DeleteGuildConfig(ctx context.Context, guildID string) error {

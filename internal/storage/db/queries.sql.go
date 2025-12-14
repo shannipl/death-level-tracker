@@ -43,6 +43,40 @@ func (q *Queries) DeleteOldPlayers(ctx context.Context, arg DeleteOldPlayersPara
 	return q.db.Exec(ctx, deleteOldPlayers, arg.World, arg.Threshold)
 }
 
+const getOfflinePlayers = `-- name: GetOfflinePlayers :many
+SELECT name, level FROM players WHERE world = $1 AND name != ALL($2::text[])
+`
+
+type GetOfflinePlayersParams struct {
+	World       string
+	OnlineNames []string
+}
+
+type GetOfflinePlayersRow struct {
+	Name  string
+	Level int32
+}
+
+func (q *Queries) GetOfflinePlayers(ctx context.Context, arg GetOfflinePlayersParams) ([]GetOfflinePlayersRow, error) {
+	rows, err := q.db.Query(ctx, getOfflinePlayers, arg.World, arg.OnlineNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetOfflinePlayersRow
+	for rows.Next() {
+		var i GetOfflinePlayersRow
+		if err := rows.Scan(&i.Name, &i.Level); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPlayersLevels = `-- name: GetPlayersLevels :many
 SELECT name, level FROM players WHERE world = $1
 `

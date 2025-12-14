@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"death-level-tracker/internal/storage"
 	"death-level-tracker/internal/tibiadata"
 )
 
@@ -44,6 +45,10 @@ func (m *mockAnalyticsStorage) DeleteOldPlayers(ctx context.Context, world strin
 
 func (m *mockAnalyticsStorage) DeleteGuildConfig(ctx context.Context, guildID string) error {
 	return nil
+}
+
+func (m *mockAnalyticsStorage) GetOfflinePlayers(ctx context.Context, world string, onlineNames []string) ([]storage.OfflinePlayer, error) {
+	return nil, nil
 }
 
 func (m *mockAnalyticsStorage) Close() {}

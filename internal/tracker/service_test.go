@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -193,11 +194,11 @@ func TestService_Start_ContextCancellation(t *testing.T) {
 }
 
 func TestService_Start_RunsPeriodicLoop(t *testing.T) {
-	runCount := 0
+	var runCount int64
 
 	mockStorage := &mockServiceStorage{
 		getWorldsMapFunc: func(ctx context.Context) (map[string][]string, error) {
-			runCount++
+			atomic.AddInt64(&runCount, 1)
 			return map[string][]string{}, nil
 		},
 	}
@@ -220,7 +221,7 @@ func TestService_Start_RunsPeriodicLoop(t *testing.T) {
 	cancel()
 
 	// runLoop should have run at least 2-3 times (initial + ticks)
-	if runCount < 2 {
-		t.Errorf("Expected at least 2 runs, got %d", runCount)
+	if atomic.LoadInt64(&runCount) < 2 {
+		t.Errorf("Expected at least 2 runs, got %d", atomic.LoadInt64(&runCount))
 	}
 }

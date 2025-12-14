@@ -3,13 +3,13 @@
 # Deploys to VPS after manual approval
 # =============================================================================
 #
-# SETUP REQUIRED:
+# SETUP REQUIRED (GitHub Settings):
 # 1. Go to GitHub repo → Settings → Environments → New environment
 # 2. Name it "production"
 # 3. Add yourself as required reviewer
-# 4. Add these secrets to the environment:
+# 4. Add these secrets (Settings → Secrets → Actions):
 #    - VPS_HOST: your server IP or hostname
-#    - VPS_USER: SSH username (e.g., root or deploy)
+#    - VPS_USER: SSH username (e.g., root)
 #    - VPS_SSH_KEY: Private SSH key for authentication
 #    - VPS_PORT: SSH port (usually 22)
 #
@@ -19,12 +19,8 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:  # Manual trigger
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   # ===========================================================================
@@ -72,44 +68,23 @@ jobs:
     needs: approval
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            cd /opt/death-level-tracker
+            git pull origin master
+            docker compose down
+            docker compose up -d --build
+            sleep 5
+            docker compose logs --tail=20 bot
 
-      # -----------------------------------------------------------------
-      # UNCOMMENT AND CONFIGURE WHEN READY TO DEPLOY
-      # -----------------------------------------------------------------
-
-      # Option 1: SSH and docker-compose
-      # - name: Deploy via SSH
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ secrets.VPS_HOST }}
-      #     username: ${{ secrets.VPS_USER }}
-      #     key: ${{ secrets.VPS_SSH_KEY }}
-      #     port: ${{ secrets.VPS_PORT }}
-      #     script: |
-      #       cd /path/to/death-level-tracker
-      #       git pull origin main
-      #       docker-compose down
-      #       docker-compose up -d --build
-      #       docker-compose logs -f --tail=50 bot
-
-      # Option 2: Copy files and restart
-      # - name: Copy files to VPS
-      #   uses: appleboy/scp-action@v0.1.7
-      #   with:
-      #     host: ${{ secrets.VPS_HOST }}
-      #     username: ${{ secrets.VPS_USER }}
-      #     key: ${{ secrets.VPS_SSH_KEY }}
-      #     port: ${{ secrets.VPS_PORT }}
-      #     source: "."
-      #     target: "/opt/death-level-tracker"
-
-      - name: Deployment placeholder
+      - name: Deployment complete
         run: |
-          echo "🚀 Deploy workflow triggered"
+          echo "🚀 Deployment completed!"
           echo "📦 Commit: ${{ github.sha }}"
           echo "👤 Actor: ${{ github.actor }}"
-          echo ""
-          echo "⚠️  Actual deployment is not configured yet."
-          echo "📝 Edit .github/workflows/deploy.yml to add your VPS credentials."

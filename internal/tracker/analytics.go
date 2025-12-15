@@ -93,6 +93,9 @@ func (a *Analytics) checkLevelUp(name string, currentLevel int, world string, db
 }
 
 func (a *Analytics) shouldUpdateLevel(exists bool, savedLevel, currentLevel int) bool {
+	if exists && currentLevel < savedLevel {
+		return false
+	}
 	return !exists || savedLevel != currentLevel
 }
 

@@ -167,7 +167,7 @@ func TestAnalytics_ShouldUpdateLevel(t *testing.T) {
 		{"New player", false, 0, 100, true},
 		{"Same level", true, 100, 100, false},
 		{"Level up", true, 100, 101, true},
-		{"Level down", true, 100, 99, true},
+		{"Level down", true, 100, 99, false},
 	}
 
 	for _, tc := range testCases {

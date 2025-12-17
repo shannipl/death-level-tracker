@@ -1,8 +1,10 @@
 package tracker
 
 import (
+	"death-level-tracker/internal/metrics"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
@@ -28,9 +30,14 @@ func (d *DiscordNotifier) Send(guildID, channelName, content string) {
 		return
 	}
 
+	channelType := d.getChannelType(channelName)
+
 	if _, err := d.session.ChannelMessageSend(channelID, content); err != nil {
 		slog.Error("Failed to send message", "channel_id", channelID, "error", err)
 		d.invalidateCache(guildID, channelName)
+		metrics.DiscordMessagesSent.WithLabelValues(channelType, "failure").Inc()
+	} else {
+		metrics.DiscordMessagesSent.WithLabelValues(channelType, "success").Inc()
 	}
 }
 
@@ -90,4 +97,14 @@ func (d *DiscordNotifier) invalidateCache(guildID, channelName string) {
 
 func (d *DiscordNotifier) buildCacheKey(guildID, channelName string) string {
 	return fmt.Sprintf("%s:%s", guildID, channelName)
+}
+
+func (d *DiscordNotifier) getChannelType(channelName string) string {
+	if strings.Contains(channelName, "death") {
+		return "death"
+	}
+	if strings.Contains(channelName, "level") {
+		return "level"
+	}
+	return "other"
 }

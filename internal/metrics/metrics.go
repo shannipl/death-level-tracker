@@ -26,4 +26,20 @@ var (
 		Name: "tibiadata_requests_total",
 		Help: "Total number of TibiaData API requests",
 	}, []string{"endpoint", "status"})
+
+	TibiaComRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "tibiacom_request_duration_seconds",
+		Help:    "Duration of Tibia.com HTML scraping requests",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"status"})
+
+	TibiaComRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "tibiacom_requests_total",
+		Help: "Total number of Tibia.com HTML scraping requests",
+	}, []string{"status"})
+
+	DiscordMessagesSent = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "discord_messages_sent_total",
+		Help: "Total number of Discord messages sent",
+	}, []string{"channel_type", "status"})
 )

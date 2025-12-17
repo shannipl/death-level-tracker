@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"death-level-tracker/internal/config"
+	"death-level-tracker/internal/metrics"
 	"death-level-tracker/internal/tibiadata"
 )
 
@@ -34,6 +35,7 @@ func (f *Fetcher) FetchWorld(world string) ([]tibiadata.OnlinePlayer, error) {
 }
 
 func (f *Fetcher) FetchWorldFromTibiaCom(world string) (map[string]int, error) {
+	start := time.Now()
 	url := fmt.Sprintf("https://www.tibia.com/community/?subtopic=worlds&world=%s", world)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -52,10 +54,18 @@ func (f *Fetcher) FetchWorldFromTibiaCom(world string) (map[string]int, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		duration := time.Since(start).Seconds()
+		metrics.TibiaComRequestDuration.WithLabelValues("error").Observe(duration)
+		metrics.TibiaComRequests.WithLabelValues("error").Inc()
 		slog.Error("Failed to fetch tibia.com world page", "world", world, "error", err)
 		return nil, fmt.Errorf("failed to fetch tibia.com: %w", err)
 	}
 	defer resp.Body.Close()
+
+	status := fmt.Sprintf("%d", resp.StatusCode)
+	duration := time.Since(start).Seconds()
+	metrics.TibiaComRequestDuration.WithLabelValues(status).Observe(duration)
+	metrics.TibiaComRequests.WithLabelValues(status).Inc()
 
 	if resp.StatusCode != http.StatusOK {
 		slog.Error("Unexpected status from tibia.com", "world", world, "status", resp.StatusCode)

@@ -203,3 +203,75 @@ func TestBaseURL_Constant(t *testing.T) {
 		t.Errorf("Expected BaseURL '%s', got '%s'", expectedURL, BaseURL)
 	}
 }
+
+func TestClient_GetCharacter_WithQuote(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify that the URL path contains the raw single quote, not %27
+		if !strings.Contains(r.URL.Path, "/character/Hell'Draco") {
+			t.Errorf("Expected path to contain \"/character/Hell'Draco\", got '%s'", r.URL.Path)
+		}
+		if strings.Contains(r.URL.Path, "%27") {
+			t.Errorf("Path should not contain encoded quote %%27, got '%s'", r.URL.Path)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{
+			"character": {
+				"character": {
+					"name": "Hell'Draco",
+					"level": 150,
+					"world": "Antica"
+				},
+				"deaths": []
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	client := NewTestClient(server.URL)
+	charResp, err := client.GetCharacter("Hell'Draco")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if charResp.Character.Character.Name != "Hell'Draco" {
+		t.Errorf("Expected character name \"Hell'Draco\", got '%s'", charResp.Character.Character.Name)
+	}
+}
+
+func TestClient_GetWorld_WithEncodedName(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// Simulate TibiaData returning an encoded name in JSON
+		w.Write([]byte(`{
+			"world": {
+				"online_players": [
+					{"name": "Hell%27Draco", "level": 123, "vocation": "Knight"},
+					{"name": "Normal Player", "level": 456, "vocation": "Druid"}
+				]
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	client := NewTestClient(server.URL)
+	players, err := client.GetWorld("Antica")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	found := false
+	for _, p := range players {
+		if p.Name == "Hell'Draco" {
+			found = true
+			break
+		}
+		if p.Name == "Hell%27Draco" {
+			t.Fatal("Found encoded name 'Hell%27Draco' in results, expected it to be decoded")
+		}
+	}
+
+	if !found {
+		t.Error("Did not find decoded player 'Hell'Draco' in results")
+	}
+}

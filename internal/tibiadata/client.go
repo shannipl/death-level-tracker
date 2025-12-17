@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"death-level-tracker/internal/metrics"
@@ -106,11 +107,18 @@ func (c *Client) GetWorld(worldName string) ([]OnlinePlayer, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	for i := range data.World.OnlinePlayers {
+		decoded, err := url.QueryUnescape(data.World.OnlinePlayers[i].Name)
+		if err == nil {
+			data.World.OnlinePlayers[i].Name = decoded
+		}
+	}
+
 	return data.World.OnlinePlayers, nil
 }
 
 func (c *Client) GetCharacter(name string) (*CharacterResponse, error) {
-	u := fmt.Sprintf("%s/character/%s", c.baseURL, url.PathEscape(name))
+	u := fmt.Sprintf("%s/character/%s", c.baseURL, strings.ReplaceAll(url.PathEscape(name), "%27", "'"))
 	resp, err := c.httpClient.Get(u)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch character: %w", err)

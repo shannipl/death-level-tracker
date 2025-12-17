@@ -3,6 +3,7 @@ package tracker
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -88,15 +89,18 @@ func extractPlayerName(td *html.Node) string {
 	return ""
 }
 
-func extractNameFromURL(url string) string {
+func extractNameFromURL(link string) string {
 	re := regexp.MustCompile(`[?&]name=([^&]+)`)
-	matches := re.FindStringSubmatch(url)
+	matches := re.FindStringSubmatch(link)
 	if len(matches) < 2 {
 		return ""
 	}
 
-	name := strings.ReplaceAll(matches[1], "+", " ")
-	return name
+	decoded, err := url.QueryUnescape(matches[1])
+	if err != nil {
+		return ""
+	}
+	return decoded
 }
 
 func extractLevel(td *html.Node) int {

@@ -114,3 +114,48 @@ func TestExtractNameFromURL(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTibiaComWorld_WithQuote(t *testing.T) {
+	htmlSample := `
+<!DOCTYPE html>
+<html>
+<body>
+<table>
+<tr class="Odd" style="text-align:right;">
+	<td style="width:70%;text-align:left;">
+		<a href="https://www.tibia.com/community/?subtopic=characters&name=Hell%27Draco">Hell&#39;Draco</a>
+	</td>
+	<td style="width:10%;">123</td>
+	<td style="width:20%;">Elite&#160;Knight</td>
+</tr>
+</table>
+</body>
+</html>
+`
+
+	reader := strings.NewReader(htmlSample)
+	players, err := ParseTibiaComWorld(reader)
+
+	if err != nil {
+		t.Fatalf("ParseTibiaComWorld failed: %v", err)
+	}
+
+	expectedName := "Hell'Draco"
+	level, ok := players[expectedName]
+	if !ok {
+		// Log what keys we actually have
+		keys := make([]string, 0, len(players))
+		for k := range players {
+			keys = append(keys, k)
+		}
+		t.Errorf("Player %q not found in results. Found: %v", expectedName, keys)
+	}
+	if level != 123 {
+		t.Errorf("Expected level 123, got %d", level)
+	}
+
+	// Double check that we don't have the encoded version
+	if _, ok := players["Hell%27Draco"]; ok {
+		t.Errorf("Found improperly encoded name Hell%%27Draco in results")
+	}
+}

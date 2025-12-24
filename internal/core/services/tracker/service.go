@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"death-level-tracker/internal/config"
@@ -23,6 +24,14 @@ type Service struct {
 	fetcher      ports.TibiaFetcher
 	levelTracker *LevelTracker
 	deathTracker *DeathTracker
+
+	cacheMu    sync.RWMutex
+	guildCache map[string]GuildCacheItem
+}
+
+type GuildCacheItem struct {
+	Members   []string
+	ExpiresAt time.Time
 }
 
 func NewService(deps Dependencies) *Service {
@@ -32,6 +41,7 @@ func NewService(deps Dependencies) *Service {
 		fetcher:      deps.Fetcher,
 		levelTracker: NewLevelTracker(deps.Config, deps.Storage, deps.Notifier),
 		deathTracker: NewDeathTracker(deps.Notifier),
+		guildCache:   make(map[string]GuildCacheItem),
 	}
 }
 

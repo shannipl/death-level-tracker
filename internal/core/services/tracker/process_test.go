@@ -39,6 +39,7 @@ func makeService(storage *mockServiceStorage, fetcher *mockServiceFetcher, notif
 		fetcher:      fetcher,
 		levelTracker: NewLevelTracker(cfg, storage, notifier),
 		deathTracker: NewDeathTracker(notifier),
+		guildCache:   make(map[string]GuildCacheItem),
 	}
 }
 
@@ -81,7 +82,7 @@ func TestFetchGuildMemberships(t *testing.T) {
 			},
 		}
 		guilds := []domain.GuildConfig{{TibiaGuilds: []string{"G1", "G2"}}}
-		service := &Service{fetcher: fetcher}
+		service := makeService(nil, fetcher, nil, nil)
 		memberships := service.fetchGuildMemberships(context.Background(), guilds)
 		if len(memberships) != 2 {
 			t.Errorf("expected 2, got %d", len(memberships))
@@ -94,10 +95,54 @@ func TestFetchGuildMemberships(t *testing.T) {
 				return nil, errors.New("error")
 			},
 		}
-		service := &Service{fetcher: fetcher}
+		service := makeService(nil, fetcher, nil, nil)
 		memberships := service.fetchGuildMemberships(context.Background(), []domain.GuildConfig{{TibiaGuilds: []string{"G1"}}})
 		if len(memberships) != 0 {
 			t.Errorf("expected 0, got %d", len(memberships))
+		}
+	})
+
+	t.Run("uses stale cache on error", func(t *testing.T) {
+		callCount := 0
+		fetcher := &mockServiceFetcher{
+			fetchGuildMembersFunc: func(ctx context.Context, name string) ([]string, error) {
+				callCount++
+				if callCount == 1 {
+					return []string{"M1"}, nil
+				}
+				return nil, errors.New("error")
+			},
+		}
+		service := makeService(nil, fetcher, nil, nil)
+		guilds := []domain.GuildConfig{{TibiaGuilds: []string{"G1"}}}
+
+		// First call: success, populates cache
+		memberships := service.fetchGuildMemberships(context.Background(), guilds)
+		if len(memberships["G1"]) != 1 {
+			t.Errorf("expected 1 member")
+		}
+
+		// Force expire cache to trigger fetch?
+		// No, if cache is valid it won't fetch.
+		// We want to test "fallback if fetch fails".
+		// But if cache is valid, we don't fetch.
+		// If cache is expired, we fetch. If fetch fails, we use stale cache.
+
+		// Manually expire the cache item
+		service.cacheMu.Lock()
+		if item, ok := service.guildCache["G1"]; ok {
+			item.ExpiresAt = time.Now().Add(-1 * time.Hour)
+			service.guildCache["G1"] = item
+		}
+		service.cacheMu.Unlock()
+
+		// Second call: should try fetch (fail) then use stale cache
+		memberships = service.fetchGuildMemberships(context.Background(), guilds)
+		if len(memberships["G1"]) != 1 {
+			t.Errorf("expected 1 member from stale cache")
+		}
+		if callCount != 2 {
+			t.Errorf("expected 2 calls, got %d", callCount)
 		}
 	})
 }

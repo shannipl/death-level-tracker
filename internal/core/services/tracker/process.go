@@ -43,9 +43,8 @@ func (s *Service) fetchGuildMemberships(ctx context.Context, guilds []domain.Gui
 
 	memberships := make(map[string]map[string]bool)
 	for guildName := range uniqueGuilds {
-		members, err := s.fetcher.FetchGuildMembers(ctx, guildName)
-		if err != nil {
-			slog.Warn("Failed to fetch guild members", "guild", guildName, "error", err)
+		members := s.getGuildMembers(ctx, guildName)
+		if members == nil {
 			continue
 		}
 
@@ -57,6 +56,36 @@ func (s *Service) fetchGuildMemberships(ctx context.Context, guilds []domain.Gui
 	}
 
 	return memberships
+}
+
+func (s *Service) getGuildMembers(ctx context.Context, guildName string) []string {
+	s.cacheMu.RLock()
+	item, cached := s.guildCache[guildName]
+	s.cacheMu.RUnlock()
+
+	now := time.Now()
+	if cached && now.Before(item.ExpiresAt) {
+		return item.Members
+	}
+
+	members, err := s.fetcher.FetchGuildMembers(ctx, guildName)
+	if err != nil {
+		slog.Warn("Failed to fetch guild members", "guild", guildName, "error", err)
+		if cached {
+			slog.Info("Using stale cache for guild", "guild", guildName)
+			return item.Members
+		}
+		return nil
+	}
+
+	s.cacheMu.Lock()
+	s.guildCache[guildName] = GuildCacheItem{
+		Members:   members,
+		ExpiresAt: now.Add(15 * time.Minute),
+	}
+	s.cacheMu.Unlock()
+
+	return members
 }
 
 func (s *Service) processOnlinePlayers(ctx context.Context, wctx *worldContext) []string {

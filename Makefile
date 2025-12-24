@@ -106,7 +106,7 @@ coverage-html: ## Generate HTML coverage report (excludes sqlc-generated files)
 # ============================================================================
 
 sqlc: ## Generate code from SQL
-	sqlc generate
+	sqlc generate -f config/sqlc.yaml
 
 # ============================================================================
 # Build

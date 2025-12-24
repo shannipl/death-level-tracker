@@ -1,0 +1,147 @@
+# =============================================================================
+# Docker Compose - Death Level Tracker
+# Production and development environment configuration
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Production Bot Service
+  # ===========================================================================
+  bot:
+    container_name: death-level-tracker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://tracker:tracker_password@postgres:5432/death_level_tracker?sslmode=disable
+      - TRACKER_INTERVAL=${TRACKER_INTERVAL:-5m}
+      - WORKER_POOL_SIZE=${WORKER_POOL_SIZE:-10}
+      - MIN_LEVEL_TRACK=${MIN_LEVEL_TRACK:-500}
+      - DISCORD_CHANNEL_DEATH=${DISCORD_CHANNEL_DEATH:-death-tracker}
+      - DISCORD_CHANNEL_LEVEL=${DISCORD_CHANNEL_LEVEL:-level-tracker}
+      - USE_TIBIACOM_FOR_LEVELS=${USE_TIBIACOM_FOR_LEVELS:-true}
+      - TZ=Europe/Warsaw
+    secrets:
+      - discord_token
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ===========================================================================
+  # Prometheus
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: death-level-tracker-prometheus
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "127.0.0.1:9090:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Grafana
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: death-level-tracker-grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_password
+      - GF_USERS_ALLOW_SIGN_UP=false
+    secrets:
+      - grafana_password
+    ports:
+      - "127.0.0.1:3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Development Environment
+  # ===========================================================================
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgres://tracker:tracker_password@postgres:5432/death_level_tracker?sslmode=disable
+      - GOCACHE=/tmp/gocache
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Database Migration Service
+  # ===========================================================================
+  migrate:
+    image: arigaio/atlas:latest-alpine
+    command:
+      - migrate
+      - apply
+      - --url
+      - postgres://tracker:tracker_password@postgres:5432/death_level_tracker?sslmode=disable
+      - --dir
+      - file:///sql/migrations
+    volumes:
+      - ./sql:/sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: death-level-tracker-db
+    environment:
+      POSTGRES_USER: tracker
+      POSTGRES_PASSWORD: tracker_password
+      POSTGRES_DB: death_level_tracker
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U tracker -d death_level_tracker" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init_dev_db.sql:/docker-entrypoint-initdb.d/init_dev_db.sql
+    restart: unless-stopped
+
+# =============================================================================
+# Docker Secrets
+# =============================================================================
+secrets:
+  discord_token:
+    file: ./secrets/discord_token.txt
+  grafana_password:
+    file: ./secrets/grafana_password.txt
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:

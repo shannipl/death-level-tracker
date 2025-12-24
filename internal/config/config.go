@@ -18,13 +18,14 @@ type Config struct {
 	DiscordChannelLevel  string
 	WorkerPoolSize       int
 	UseTibiaComForLevels bool
+	DiscordGuildID       string
+	DatabaseURL          string
 }
 
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
-	// Try Docker secret first, then environment variable
-	token := getSecret("discord_token")
+	token := readSecret("discord_token")
 	if token == "" {
 		token = os.Getenv("DISCORD_TOKEN")
 	}
@@ -32,14 +33,24 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("DISCORD_TOKEN is not set (via secret or env var)")
 	}
 
+	dbURL := readSecret("database_url")
+	if dbURL == "" {
+		dbURL = os.Getenv("DATABASE_URL")
+	}
+	if dbURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is not set (via secret or env var)")
+	}
+
 	cfg := &Config{
 		Token:                token,
-		TrackerInterval:      getEnvDuration("TRACKER_INTERVAL", 5*time.Minute),
-		MinLevelTrack:        getEnvInt("MIN_LEVEL_TRACK", 500),
-		DiscordChannelDeath:  getEnvString("DISCORD_CHANNEL_DEATH", "death-tracker"),
-		DiscordChannelLevel:  getEnvString("DISCORD_CHANNEL_LEVEL", "level-tracker"),
-		WorkerPoolSize:       getEnvInt("WORKER_POOL_SIZE", 10),
-		UseTibiaComForLevels: getEnvBool("USE_TIBIACOM_FOR_LEVELS", true),
+		TrackerInterval:      envDuration("TRACKER_INTERVAL", 5*time.Minute),
+		MinLevelTrack:        envInt("MIN_LEVEL_TRACK", 500),
+		DiscordChannelDeath:  envString("DISCORD_CHANNEL_DEATH", "death-tracker"),
+		DiscordChannelLevel:  envString("DISCORD_CHANNEL_LEVEL", "level-tracker"),
+		WorkerPoolSize:       envInt("WORKER_POOL_SIZE", 10),
+		UseTibiaComForLevels: envBool("USE_TIBIACOM_FOR_LEVELS", true),
+		DiscordGuildID:       envString("DISCORD_GUILD_ID", ""),
+		DatabaseURL:          dbURL,
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -49,23 +60,24 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-func getSecret(name string) string {
-	path := "/run/secrets/" + name
-	data, err := os.ReadFile(path)
+var secretsDir = "/run/secrets/"
+
+func readSecret(name string) string {
+	data, err := os.ReadFile(secretsDir + name)
 	if err != nil {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
 }
 
-func getEnvString(key, fallback string) string {
+func envString(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return fallback
 }
 
-func getEnvInt(key string, fallback int) int {
+func envInt(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
@@ -74,7 +86,7 @@ func getEnvInt(key string, fallback int) int {
 	return fallback
 }
 
-func getEnvDuration(key string, fallback time.Duration) time.Duration {
+func envDuration(key string, fallback time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			return d
@@ -83,7 +95,7 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 	return fallback
 }
 
-func getEnvBool(key string, fallback bool) bool {
+func envBool(key string, fallback bool) bool {
 	if v := os.Getenv(key); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			return b

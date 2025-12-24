@@ -6,203 +6,169 @@ import (
 	"time"
 )
 
-func TestConfig_Validate_ValidConfig(t *testing.T) {
-	cfg := &Config{
-		Token:               strings.Repeat("a", 50),
+func validConfig() *Config {
+	return &Config{
+		Token:               strings.Repeat("x", 50),
 		TrackerInterval:     5 * time.Minute,
 		MinLevelTrack:       500,
 		WorkerPoolSize:      10,
 		DiscordChannelDeath: "death-tracker",
 		DiscordChannelLevel: "level-tracker",
 	}
+}
 
-	if err := cfg.Validate(); err != nil {
-		t.Errorf("Valid config should not produce error: %v", err)
+func TestValidate_ValidConfig(t *testing.T) {
+	if err := validConfig().Validate(); err != nil {
+		t.Errorf("valid config should pass: %v", err)
 	}
 }
 
-func TestConfig_Validate_Token(t *testing.T) {
+func TestValidate_Token(t *testing.T) {
 	tests := []struct {
 		name    string
 		token   string
 		wantErr bool
 	}{
-		{"valid token", strings.Repeat("a", 50), false},
-		{"too short", strings.Repeat("a", 49), true},
+		{"valid", strings.Repeat("x", 50), false},
+		{"exactly min", strings.Repeat("x", 50), false},
+		{"too short", strings.Repeat("x", 49), true},
 		{"empty", "", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				Token:               tt.token,
-				TrackerInterval:     5 * time.Minute,
-				MinLevelTrack:       500,
-				WorkerPoolSize:      10,
-				DiscordChannelDeath: "death-tracker",
-				DiscordChannelLevel: "level-tracker",
-			}
-
+			cfg := validConfig()
+			cfg.Token = tt.token
 			err := cfg.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Token validation error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Token=%q: error=%v, wantErr=%v", tt.token, err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestConfig_Validate_TrackerInterval(t *testing.T) {
+func TestValidate_TrackerInterval(t *testing.T) {
 	tests := []struct {
 		name     string
 		interval time.Duration
 		wantErr  bool
 	}{
-		{"minimum valid", 1 * time.Minute, false},
-		{"below minimum", 59 * time.Second, true},
+		{"min valid", time.Minute, false},
+		{"below min", 59 * time.Second, true},
 		{"normal", 5 * time.Minute, false},
-		{"maximum valid", 24 * time.Hour, false},
-		{"too large", 25 * time.Hour, true},
+		{"max valid", 24 * time.Hour, false},
+		{"above max", 25 * time.Hour, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				Token:               strings.Repeat("a", 50),
-				TrackerInterval:     tt.interval,
-				MinLevelTrack:       500,
-				WorkerPoolSize:      10,
-				DiscordChannelDeath: "death-tracker",
-				DiscordChannelLevel: "level-tracker",
-			}
-
+			cfg := validConfig()
+			cfg.TrackerInterval = tt.interval
 			err := cfg.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TrackerInterval validation error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("TrackerInterval=%v: error=%v, wantErr=%v", tt.interval, err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestConfig_Validate_MinLevelTrack(t *testing.T) {
+func TestValidate_MinLevelTrack(t *testing.T) {
 	tests := []struct {
 		name    string
 		level   int
 		wantErr bool
 	}{
-		{"minimum valid", 1, false},
-		{"too small", 0, true},
+		{"min valid", 1, false},
+		{"zero", 0, true},
 		{"negative", -1, true},
 		{"normal", 500, false},
-		{"high level", 2000, false},
-		{"very high level", 5000, false}, // No upper limit now
+		{"high", 5000, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				Token:               strings.Repeat("a", 50),
-				TrackerInterval:     5 * time.Minute,
-				MinLevelTrack:       tt.level,
-				WorkerPoolSize:      10,
-				DiscordChannelDeath: "death-tracker",
-				DiscordChannelLevel: "level-tracker",
-			}
-
+			cfg := validConfig()
+			cfg.MinLevelTrack = tt.level
 			err := cfg.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("MinLevelTrack validation error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MinLevelTrack=%d: error=%v, wantErr=%v", tt.level, err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestConfig_Validate_WorkerPoolSize(t *testing.T) {
+func TestValidate_WorkerPoolSize(t *testing.T) {
 	tests := []struct {
 		name    string
 		size    int
 		wantErr bool
 	}{
-		{"minimum valid", 1, false},
-		{"too small", 0, true},
+		{"min valid", 1, false},
+		{"zero", 0, true},
 		{"negative", -1, true},
 		{"normal", 10, false},
-		{"maximum valid", 100, false},
-		{"too large", 101, true},
+		{"max valid", 100, false},
+		{"above max", 101, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				Token:               strings.Repeat("a", 50),
-				TrackerInterval:     5 * time.Minute,
-				MinLevelTrack:       500,
-				WorkerPoolSize:      tt.size,
-				DiscordChannelDeath: "death-tracker",
-				DiscordChannelLevel: "level-tracker",
-			}
-
+			cfg := validConfig()
+			cfg.WorkerPoolSize = tt.size
 			err := cfg.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("WorkerPoolSize validation error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("WorkerPoolSize=%d: error=%v, wantErr=%v", tt.size, err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestConfig_Validate_ChannelNames(t *testing.T) {
+func TestValidate_ChannelNames(t *testing.T) {
 	tests := []struct {
 		name      string
 		deathChan string
 		levelChan string
 		wantErr   bool
 	}{
-		{"both valid", "death-tracker", "level-tracker", false},
-		{"empty death channel", "", "level-tracker", true},
-		{"empty level channel", "death-tracker", "", true},
+		{"both valid", "death", "level", false},
+		{"death empty", "", "level", true},
+		{"level empty", "death", "", true},
 		{"both empty", "", "", true},
-		{"death too long", strings.Repeat("a", 101), "level-tracker", true},
-		{"level too long", "death-tracker", strings.Repeat("a", 101), true},
-		{"max length valid", strings.Repeat("a", 100), strings.Repeat("b", 100), false},
+		{"death too long", strings.Repeat("x", 101), "level", true},
+		{"level too long", "death", strings.Repeat("x", 101), true},
+		{"max length", strings.Repeat("x", 100), strings.Repeat("y", 100), false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				Token:               strings.Repeat("a", 50),
-				TrackerInterval:     5 * time.Minute,
-				MinLevelTrack:       500,
-				WorkerPoolSize:      10,
-				DiscordChannelDeath: tt.deathChan,
-				DiscordChannelLevel: tt.levelChan,
-			}
-
+			cfg := validConfig()
+			cfg.DiscordChannelDeath = tt.deathChan
+			cfg.DiscordChannelLevel = tt.levelChan
 			err := cfg.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Channel validation error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("channels=%q/%q: error=%v, wantErr=%v", tt.deathChan, tt.levelChan, err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestConfig_Validate_MultipleErrors(t *testing.T) {
-	// Config with multiple invalid fields
+func TestValidate_MultipleErrors(t *testing.T) {
 	cfg := &Config{
-		Token:               "",               // invalid: empty
-		TrackerInterval:     30 * time.Second, // invalid: too small
-		MinLevelTrack:       0,                // invalid: too small
-		WorkerPoolSize:      -1,               // invalid: negative
-		DiscordChannelDeath: "",               // invalid: empty
-		DiscordChannelLevel: "",               // invalid: empty
+		Token:               "",
+		TrackerInterval:     30 * time.Second,
+		MinLevelTrack:       0,
+		WorkerPoolSize:      0,
+		DiscordChannelDeath: "",
+		DiscordChannelLevel: "",
 	}
 
 	err := cfg.Validate()
 	if err == nil {
-		t.Fatal("Expected validation error for invalid config")
+		t.Fatal("expected validation errors")
 	}
 
-	// Should contain multiple error messages
 	errMsg := err.Error()
-	expectedSubstrings := []string{
+	mustContain := []string{
 		"DISCORD_TOKEN",
 		"TRACKER_INTERVAL",
 		"MIN_LEVEL_TRACK",
@@ -211,9 +177,9 @@ func TestConfig_Validate_MultipleErrors(t *testing.T) {
 		"DISCORD_CHANNEL_LEVEL",
 	}
 
-	for _, substr := range expectedSubstrings {
-		if !strings.Contains(errMsg, substr) {
-			t.Errorf("Error message should contain %q, got: %s", substr, errMsg)
+	for _, s := range mustContain {
+		if !strings.Contains(errMsg, s) {
+			t.Errorf("error should contain %q: %s", s, errMsg)
 		}
 	}
 }

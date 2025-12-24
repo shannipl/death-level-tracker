@@ -2,62 +2,73 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
-	"os"
 
+	discordadapter "death-level-tracker/internal/adapters/discord"
+	"death-level-tracker/internal/adapters/discord/commands"
+	"death-level-tracker/internal/adapters/storage/postgres"
+	"death-level-tracker/internal/adapters/tibiadata"
+	"death-level-tracker/internal/adapters/tibiadata/api"
 	"death-level-tracker/internal/config"
-	"death-level-tracker/internal/handlers"
-	"death-level-tracker/internal/storage"
-	"death-level-tracker/internal/tracker"
+	"death-level-tracker/internal/core/ports"
+	"death-level-tracker/internal/core/services"
+	"death-level-tracker/internal/core/services/tracker"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type App struct {
-	config             *config.Config
-	store              *storage.PostgresStore
-	discord            *discordgo.Session
-	trackerService     *tracker.Service
-	router             *handlers.Router
-	trackerCtx         context.Context
-	trackerCancel      context.CancelFunc
+	config         *config.Config
+	store          ports.Repository
+	discord        *discordgo.Session
+	trackerService *tracker.Service
+	router         *commands.Router
+
+	metricsServer *http.Server
+
+	trackerCtx    context.Context
+	trackerCancel context.CancelFunc
+
 	registeredCommands []*discordgo.ApplicationCommand
 }
 
-func NewApp(ctx context.Context) (*App, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		slog.Error("Failed to load config", "error", err)
-		return nil, err
-	}
-
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		slog.Error("DATABASE_URL is not set")
-		return nil, err
-	}
-
-	store, err := storage.NewPostgresStore(ctx, dbURL)
+func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
+	store, err := postgres.NewPostgresStore(ctx, cfg.DatabaseURL)
 	if err != nil {
 		slog.Error("Failed to connect to storage", "error", err)
 		return nil, err
 	}
 
-	discord, err := NewDiscordSession(cfg)
+	discord, err := discordadapter.NewSession(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	trackerService := tracker.NewService(cfg, store, discord)
+	client := api.NewClient()
+	fetcher := tibiadata.NewAdapter(client, cfg)
+	notifier := discordadapter.NewAdapter(discord, cfg)
 
-	botHandlers := &handlers.BotHandler{Config: cfg, Store: store}
-	router := handlers.NewRouter()
-	router.Register("track-world", handlers.WithAdmin(botHandlers.TrackWorld))
-	router.Register("stop-tracking", handlers.WithAdmin(botHandlers.StopTracking))
+	trackerService := tracker.NewService(tracker.Dependencies{
+		Config:   cfg,
+		Storage:  store,
+		Fetcher:  fetcher,
+		Notifier: notifier,
+	})
 
-	discord.AddHandler(handlers.ReadyHandler)
+	configService := services.NewConfigurationService(store)
+	botHandlers := &commands.BotHandler{Config: cfg, Service: configService}
+
+	router := commands.NewRouter()
+	router.Register("track-world", commands.WithAdmin(botHandlers.TrackWorld))
+	router.Register("stop-tracking", commands.WithAdmin(botHandlers.StopTracking))
+	router.Register("add-guild", commands.WithAdmin(botHandlers.AddGuild))
+	router.Register("unset-guild", commands.WithAdmin(botHandlers.UnsetGuild))
+	router.Register("list-guilds", commands.WithAdmin(botHandlers.ListGuilds))
+
+	discord.AddHandler(commands.ReadyHandler)
 	discord.AddHandler(router.HandleFunc())
 
 	return &App{
@@ -70,19 +81,18 @@ func NewApp(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Run() error {
-	err := a.discord.Open()
-	if err != nil {
+	a.startMetricsServer()
+
+	if err := a.discord.Open(); err != nil {
 		slog.Error("Failed to open discord session", "error", err)
 		return err
 	}
 
-	commands := GetApplicationCommands()
-	CleanupCommands(a.discord, a.registeredCommands, a.discord.State.User.ID)
-	a.registeredCommands = RegisterCommands(a.discord, commands, a.discord.State.User.ID)
+	cmds := commands.GetApplicationCommands()
+	commands.CleanupCommands(a.discord, a.registeredCommands, a.discord.State.User.ID, a.config.DiscordGuildID)
+	a.registeredCommands = commands.RegisterCommands(a.discord, cmds, a.discord.State.User.ID, a.config.DiscordGuildID)
 
 	slog.Info("Players Tracker is online!")
-
-	a.StartMetricsServer()
 
 	a.trackerCtx, a.trackerCancel = context.WithCancel(context.Background())
 	go a.trackerService.Start(a.trackerCtx)
@@ -90,42 +100,45 @@ func (a *App) Run() error {
 	return nil
 }
 
-func (a *App) Shutdown() {
-	slog.Info("Shutting down...")
+func (a *App) Shutdown(ctx context.Context) error {
+	slog.Info("Shutting down application...")
 
 	if a.trackerCancel != nil {
 		a.trackerCancel()
 	}
 
-	if a.discord != nil {
-		a.discord.Close()
-	}
-
-	if a.trackerCancel != nil {
-		a.trackerCancel()
+	if a.metricsServer != nil {
+		if err := a.metricsServer.Shutdown(ctx); err != nil {
+			slog.Error("Failed to shutdown metrics server", "error", err)
+		}
 	}
 
 	if a.discord != nil {
-		a.discord.Close()
+		if err := a.discord.Close(); err != nil {
+			slog.Error("Failed to close discord session", "error", err)
+		}
 	}
 
 	if a.store != nil {
 		a.store.Close()
 	}
+
+	slog.Info("Shutdown complete")
+	return nil
 }
 
-func (a *App) StartMetricsServer() {
+func (a *App) startMetricsServer() {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	a.metricsServer = &http.Server{
+		Addr:    ":2112",
+		Handler: mux,
+	}
+
 	go func() {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-
-		server := &http.Server{
-			Addr:    ":2112",
-			Handler: mux,
-		}
-
 		slog.Info("Starting metrics server on :2112")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := a.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Metrics server failed", "error", err)
 		}
 	}()

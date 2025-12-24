@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS guild_configs (
     guild_id VARCHAR(32) PRIMARY KEY,
     world VARCHAR(64) NOT NULL,
+    tibia_guilds TEXT[] DEFAULT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

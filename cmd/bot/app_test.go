@@ -2,94 +2,86 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
 	"death-level-tracker/internal/config"
+	"death-level-tracker/internal/core/ports"
 )
 
-// TestApp_Shutdown tests the Shutdown method
+type mockStore struct {
+	ports.Repository
+	closed bool
+}
+
+func (m *mockStore) Close() {
+	m.closed = true
+}
+
 func TestApp_Shutdown(t *testing.T) {
-	// Create a real app structure but with minimal setup
+	cfg := &config.Config{}
+	store := &mockStore{}
+
+	trackerCtx, trackerCancel := context.WithCancel(context.Background())
+
+	metricsServer := &http.Server{Addr: ":0"}
+	go func() {
+		_ = metricsServer.ListenAndServe()
+	}()
+	time.Sleep(10 * time.Millisecond)
+
+	app := &App{
+		config:        cfg,
+		store:         store,
+		metricsServer: metricsServer,
+		trackerCtx:    trackerCtx,
+		trackerCancel: trackerCancel,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if err := app.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown failed: %v", err)
+	}
+
+	if !store.closed {
+		t.Error("Store was not closed")
+	}
+
+	scan := false
+	select {
+	case <-trackerCtx.Done():
+		scan = true
+	default:
+	}
+	if !scan {
+		t.Error("Tracker context was not cancelled")
+	}
+}
+
+func TestApp_Shutdown_NilComponents(t *testing.T) {
 	app := &App{
 		config: &config.Config{},
 	}
 
-	// Set up tracker context that can be cancelled
-	ctx, cancel := context.WithCancel(context.Background())
-	app.trackerCtx = ctx
-	app.trackerCancel = cancel
-
-	// Should not panic
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Shutdown panicked: %v", r)
-		}
-	}()
-
-	app.Shutdown()
-
-	// Verify context was cancelled
-	select {
-	case <-app.trackerCtx.Done():
-		// Expected - context should be cancelled
-	case <-time.After(100 * time.Millisecond):
-		t.Error("Context was not cancelled")
+	ctx := context.Background()
+	if err := app.Shutdown(ctx); err != nil {
+		t.Errorf("Shutdown failed with nil components: %v", err)
 	}
 }
 
-func TestApp_Shutdown_NilCancel(t *testing.T) {
+func TestStartMetricsServer(t *testing.T) {
 	app := &App{
-		config:        &config.Config{},
-		trackerCancel: nil, // nil cancel function
+		config: &config.Config{},
 	}
 
-	// Should not panic with nil cancel
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Shutdown panicked with nil cancel: %v", r)
-		}
-	}()
+	app.startMetricsServer()
 
-	app.Shutdown()
-}
-
-func TestApp_Shutdown_NilDiscord(t *testing.T) {
-	app := &App{
-		discord: nil,
+	if app.metricsServer == nil {
+		t.Error("Metrics server not initialized")
 	}
 
-	// Should not panic with nil discord
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Shutdown panicked with nil discord: %v", r)
-		}
-	}()
-
-	app.Shutdown()
+	_ = app.metricsServer.Close()
 }
-
-func TestApp_Shutdown_NilStore(t *testing.T) {
-	app := &App{
-		store: nil,
-	}
-
-	// Should not panic with nil store
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Shutdown panicked with nil store: %v", r)
-		}
-	}()
-
-	app.Shutdown()
-}
-
-// Note: Testing NewApp requires a full environment setup (DATABASE_URL, valid config, etc.)
-// and is better suited for integration tests.
-
-// Note: Testing Run requires a real Discord session which would make actual API calls.
-// This is better suited for integration/E2E tests. The Run method's logic is straightforward:
-// 1. Opens Discord session
-// 2. Registers commands
-// 3. Starts tracker service
-// These are tested individually in their respective unit tests.

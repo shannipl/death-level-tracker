@@ -25,34 +25,32 @@ func TestNewDeathTracker(t *testing.T) {
 	if tracker.ttl != 25*time.Hour {
 		t.Errorf("expected TTL 25h, got %v", tracker.ttl)
 	}
-	if tracker.bootTime.IsZero() {
-		t.Error("expected bootTime to be set")
+	if tracker.ttl != 25*time.Hour {
+		t.Errorf("expected TTL 25h, got %v", tracker.ttl)
 	}
 }
 
 func TestDeathTracker_IsOldDeath(t *testing.T) {
-	tracker := &DeathTracker{bootTime: time.Now()}
+	tracker := &DeathTracker{}
 
-	t.Run("death before boot - is old", func(t *testing.T) {
-		oldDeath := time.Now().Add(-1 * time.Hour)
+	t.Run("death older than 2h - is old", func(t *testing.T) {
+		oldDeath := time.Now().Add(-3 * time.Hour)
 		if !tracker.isOldDeath(oldDeath) {
-			t.Error("expected true for death before boot")
+			t.Error("expected true for death older than 2h")
 		}
 	})
 
-	t.Run("death after boot - is not old", func(t *testing.T) {
-		tracker.bootTime = time.Now().Add(-1 * time.Hour)
-		newDeath := time.Now()
+	t.Run("death newer than 2h - is not old", func(t *testing.T) {
+		newDeath := time.Now().Add(-1 * time.Hour)
 		if tracker.isOldDeath(newDeath) {
-			t.Error("expected false for death after boot")
+			t.Error("expected false for death newer than 2h")
 		}
 	})
 
-	t.Run("death exactly at boot - is not old", func(t *testing.T) {
-		bootTime := time.Now()
-		tracker.bootTime = bootTime
-		if tracker.isOldDeath(bootTime) {
-			t.Error("expected false for death at boot time")
+	t.Run("death exactly at 2h boundary - is not old", func(t *testing.T) {
+		boundary := time.Now().Add(-2 * time.Hour).Add(1 * time.Second)
+		if tracker.isOldDeath(boundary) {
+			t.Error("expected false for death just inside 2h window")
 		}
 	})
 }
@@ -194,12 +192,11 @@ func TestDeathTracker_CheckDeaths(t *testing.T) {
 
 		tracker := &DeathTracker{
 			notifier:   notifier,
-			bootTime:   time.Now(),
 			seenDeaths: make(map[string]deathRecord),
 			ttl:        25 * time.Hour,
 		}
 
-		oldDeath := domain.Kill{Time: time.Now().Add(-1 * time.Hour)}
+		oldDeath := domain.Kill{Time: time.Now().Add(-3 * time.Hour)}
 		player := &domain.Player{Name: "P1", Deaths: []domain.Kill{oldDeath}}
 
 		tracker.CheckDeaths(player, []domain.GuildConfig{{DiscordGuildID: "g1"}}, nil)
@@ -215,7 +212,6 @@ func TestDeathTracker_CheckDeaths(t *testing.T) {
 
 		tracker := &DeathTracker{
 			notifier:   notifier,
-			bootTime:   time.Now().Add(-1 * time.Hour),
 			seenDeaths: make(map[string]deathRecord),
 			ttl:        25 * time.Hour,
 		}
@@ -236,7 +232,6 @@ func TestDeathTracker_CheckDeaths(t *testing.T) {
 
 		tracker := &DeathTracker{
 			notifier:   notifier,
-			bootTime:   time.Now().Add(-1 * time.Hour),
 			seenDeaths: make(map[string]deathRecord),
 			ttl:        25 * time.Hour,
 		}
@@ -259,7 +254,6 @@ func TestDeathTracker_CheckDeaths(t *testing.T) {
 
 		tracker := &DeathTracker{
 			notifier:   notifier,
-			bootTime:   time.Now().Add(-1 * time.Hour),
 			seenDeaths: make(map[string]deathRecord),
 			ttl:        25 * time.Hour,
 		}
@@ -282,19 +276,18 @@ func TestDeathTracker_CheckDeaths(t *testing.T) {
 		var notifyCount int
 		notifier := &mockDeathNotifier{onNotify: func() { notifyCount++ }}
 
-		bootTime := time.Now().Add(-30 * time.Minute)
 		tracker := &DeathTracker{
 			notifier:   notifier,
-			bootTime:   bootTime,
 			seenDeaths: make(map[string]deathRecord),
 			ttl:        25 * time.Hour,
 		}
 
+		now := time.Now()
 		deaths := []domain.Kill{
-			{Time: bootTime.Add(-1 * time.Hour)},
-			{Time: bootTime.Add(1 * time.Minute)},
-			{Time: bootTime.Add(-30 * time.Minute)},
-			{Time: bootTime.Add(15 * time.Minute)},
+			{Time: now.Add(-3 * time.Hour)},    // Old (> 2h)
+			{Time: now.Add(-1 * time.Hour)},    // New (< 2h)
+			{Time: now.Add(-10 * time.Minute)}, // New (< 2h)
+			{Time: now.Add(-4 * time.Hour)},    // Old (> 2h)
 		}
 		player := &domain.Player{Name: "P1", Deaths: deaths}
 
@@ -308,7 +301,6 @@ func TestDeathTracker_CheckDeaths(t *testing.T) {
 	t.Run("calls evictOld on each check", func(t *testing.T) {
 		tracker := &DeathTracker{
 			notifier:   &mockDeathNotifier{},
-			bootTime:   time.Now().Add(-1 * time.Hour),
 			ttl:        1 * time.Millisecond,
 			seenDeaths: make(map[string]deathRecord),
 		}

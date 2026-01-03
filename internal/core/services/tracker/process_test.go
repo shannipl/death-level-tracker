@@ -519,7 +519,7 @@ func TestProcessDeathsForOnlinePlayers(t *testing.T) {
 			},
 		}
 		service := makeService(nil, fetcher, nil, &config.Config{MinLevelTrack: 100})
-		service.processDeathsForOnlinePlayers(context.Background(), []domain.Player{{Name: "P1", Level: 200}}, nil)
+		service.processDeathsForOnlinePlayers(context.Background(), []domain.Player{{Name: "P1", Level: 200}}, makeWorldContext("Antica"))
 	})
 }
 

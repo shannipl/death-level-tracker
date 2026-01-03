@@ -13,10 +13,11 @@ func (s *Service) processWorld(ctx context.Context, world string, guilds []domai
 	if wctx == nil {
 		return
 	}
-
+	slog.Info("Processing world", "world", world)
 	onlineNames := s.processOnlinePlayers(ctx, wctx)
 	s.performMaintenance(ctx, world, onlineNames)
 	s.processOfflinePlayers(ctx, wctx, onlineNames)
+	slog.Info("Finished processing world", "world", world)
 }
 
 func (s *Service) initWorldContext(ctx context.Context, world string, guilds []domain.GuildConfig) *worldContext {
@@ -90,8 +91,10 @@ func (s *Service) getGuildMembers(ctx context.Context, guildName string) []strin
 
 func (s *Service) processOnlinePlayers(ctx context.Context, wctx *worldContext) []string {
 	if s.config.UseTibiaComForLevels {
+		slog.Info("Processing online players via tibia.com", "world", wctx.world)
 		return s.processViaTibiaCom(ctx, wctx)
 	}
+	slog.Info("Processing online players via TibiaData", "world", wctx.world)
 	return s.processViaTibiaData(ctx, wctx)
 }
 
@@ -103,11 +106,13 @@ func (s *Service) processViaTibiaCom(ctx context.Context, wctx *worldContext) []
 	}
 
 	onlineNames := extractNames(levels)
+	slog.Info("Extracted online players", "world", wctx.world, "count", len(onlineNames))
 
 	s.processLevelsFromTibiaCom(ctx, levels, wctx)
 	s.performMaintenance(ctx, wctx.world, onlineNames)
 	s.processDeathsForOnlinePlayers(ctx, levelsToPlayers(levels), wctx)
 
+	slog.Info("Finished processing online players", "world", wctx.world, "count", len(onlineNames))
 	return onlineNames
 }
 
@@ -153,6 +158,7 @@ func (s *Service) filterByMinLevel(players []domain.Player) []string {
 
 func (s *Service) processOfflinePlayers(ctx context.Context, wctx *worldContext, onlineNames []string) {
 	offlinePlayers, err := s.storage.GetOfflinePlayers(ctx, wctx.world, onlineNames)
+	slog.Info("Found offline players", "world", wctx.world, "count", len(offlinePlayers))
 	if err != nil {
 		slog.Error("Failed to get offline players", "world", wctx.world, "error", err)
 		return
@@ -170,6 +176,7 @@ func (s *Service) processOfflinePlayers(ctx context.Context, wctx *worldContext,
 		slog.Error("Failed to fetch character details for offline players", "error", err)
 		return
 	}
+	slog.Info("Fetched details for offline players from TibiaData", "world", wctx.world, "count", len(results))
 
 	for char := range results {
 		if char.Level < s.config.MinLevelTrack {
@@ -178,9 +185,11 @@ func (s *Service) processOfflinePlayers(ctx context.Context, wctx *worldContext,
 		s.deathTracker.CheckDeaths(char, wctx.guilds, wctx.memberships)
 		s.levelTracker.CheckLevelUp(ctx, char.Name, char.Level, char.World, wctx.dbLevels, wctx.guilds, wctx.memberships)
 	}
+	slog.Info("Finished checking offline players", "world", wctx.world, "count", len(offlinePlayers))
 }
 
 func (s *Service) performMaintenance(ctx context.Context, world string, onlineNames []string) {
+	slog.Info("Performing maintenance", "world", world, "online_count", len(onlineNames))
 	if len(onlineNames) > 0 {
 		if err := s.storage.BatchTouchPlayers(ctx, onlineNames); err != nil {
 			slog.Error("Failed to touch players", "world", world, "error", err)
@@ -224,6 +233,7 @@ func (s *Service) processLevelsFromTibiaCom(ctx context.Context, levels map[stri
 			s.levelTracker.notifyLevelUp(wctx.guilds, name, savedLevel, currentLevel, wctx.world, wctx.memberships)
 		}
 	}
+	slog.Info("Finished processing players from tibia.com", "world", wctx.world, "count", len(levels))
 }
 
 func (s *Service) processDeathsForOnlinePlayers(ctx context.Context, players []domain.Player, wctx *worldContext) {
@@ -232,15 +242,19 @@ func (s *Service) processDeathsForOnlinePlayers(ctx context.Context, players []d
 		return
 	}
 
+	slog.Info("Processing deaths for online players", "world", wctx.world, "count", len(filteredNames))
 	results, err := s.fetcher.FetchCharacterDetails(ctx, filteredNames)
+	slog.Info("Fetched details for online players from TibiaData", "world", wctx.world, "count", len(results))
 	if err != nil {
 		slog.Error("Failed to fetch character details for deaths", "error", err)
 		return
 	}
 
+	slog.Info("Checking deaths for online players", "world", wctx.world, "count", len(results))
 	for char := range results {
 		s.deathTracker.CheckDeaths(char, wctx.guilds, wctx.memberships)
 	}
+	slog.Info("Finished checking deaths for online players", "world", wctx.world, "count", len(results))
 }
 
 func extractNames(levels map[string]int) []string {

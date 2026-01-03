@@ -15,8 +15,8 @@ func (s *Service) processWorld(ctx context.Context, world string, guilds []domai
 	}
 
 	onlineNames := s.processOnlinePlayers(ctx, wctx)
-	s.processOfflinePlayers(ctx, wctx, onlineNames)
 	s.performMaintenance(ctx, world, onlineNames)
+	s.processOfflinePlayers(ctx, wctx, onlineNames)
 }
 
 func (s *Service) initWorldContext(ctx context.Context, world string, guilds []domain.GuildConfig) *worldContext {
@@ -105,6 +105,7 @@ func (s *Service) processViaTibiaCom(ctx context.Context, wctx *worldContext) []
 	onlineNames := extractNames(levels)
 
 	s.processLevelsFromTibiaCom(ctx, levels, wctx)
+	s.performMaintenance(ctx, wctx.world, onlineNames)
 	s.processDeathsForOnlinePlayers(ctx, levelsToPlayers(levels), wctx)
 
 	return onlineNames

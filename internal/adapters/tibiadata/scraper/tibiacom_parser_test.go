@@ -107,6 +107,21 @@ func TestParseTibiaComWorld(t *testing.T) {
 			want:      map[string]int{},
 			wantErr:   false, // html.Parse is forgiving
 		},
+		{
+			name: "Defect Reproduction - Anchor Tag Before Link",
+			htmlInput: `
+				<html><body><table>
+					<tr class="Odd">
+						<td style="width:70%;text-align:left;"><a name="S"></a><a href="https://www.tibia.com/community/?subtopic=characters&name=Saayo">Saayo</a></td>
+						<td style="width:10%;">1756</td>
+						<td style="width:20%;">Master&#160;Sorcerer</td>
+					</tr>
+				</table></body></html>`,
+			want: map[string]int{
+				"Saayo": 1756,
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

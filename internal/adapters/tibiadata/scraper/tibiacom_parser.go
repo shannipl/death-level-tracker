@@ -70,10 +70,8 @@ func extractPlayerData(tr *html.Node) (string, int) {
 func extractPlayerName(td *html.Node) string {
 	var link *html.Node
 
-	// Iterate over all children to find the correct link
 	for c := td.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.ElementNode && c.Data == "a" {
-			// Check if this anchor is the player link
 			for _, attr := range c.Attr {
 				if attr.Key == "href" && strings.Contains(attr.Val, "name=") {
 					link = c

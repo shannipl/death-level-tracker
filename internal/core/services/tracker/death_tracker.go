@@ -21,6 +21,7 @@ type DeathTracker struct {
 	notifier   ports.NotificationService
 	seenDeaths map[string]deathRecord
 	ttl        time.Duration
+	startTime  time.Time
 	mu         sync.Mutex
 }
 
@@ -29,6 +30,7 @@ func NewDeathTracker(notifier ports.NotificationService) *DeathTracker {
 		notifier:   notifier,
 		seenDeaths: make(map[string]deathRecord),
 		ttl:        deathCacheTTL,
+		startTime:  time.Now(),
 	}
 }
 
@@ -61,7 +63,7 @@ func (d *DeathTracker) evictOld() {
 }
 
 func (d *DeathTracker) isOldDeath(t time.Time) bool {
-	return t.Before(time.Now().Add(-2 * time.Hour))
+	return t.Before(time.Now().Add(-2*time.Hour)) && t.Before(d.startTime)
 }
 
 func (d *DeathTracker) isDuplicateDeath(name string, t time.Time) bool {

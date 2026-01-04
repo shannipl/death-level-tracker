@@ -25,8 +25,8 @@ func TestNewDeathTracker(t *testing.T) {
 	if tracker.ttl != 25*time.Hour {
 		t.Errorf("expected TTL 25h, got %v", tracker.ttl)
 	}
-	if tracker.ttl != 25*time.Hour {
-		t.Errorf("expected TTL 25h, got %v", tracker.ttl)
+	if tracker.startTime.IsZero() {
+		t.Error("expected startTime to be set")
 	}
 }
 
@@ -51,6 +51,24 @@ func TestDeathTracker_IsOldDeath(t *testing.T) {
 		boundary := time.Now().Add(-2 * time.Hour).Add(1 * time.Second)
 		if tracker.isOldDeath(boundary) {
 			t.Error("expected false for death just inside 2h window")
+		}
+	})
+
+	t.Run("death before app start - is old", func(t *testing.T) {
+		stTracker := &DeathTracker{startTime: time.Now().Add(-1 * time.Hour)}
+		deathBeforeStart := time.Now().Add(-90 * time.Minute)
+
+		if !stTracker.isOldDeath(deathBeforeStart) {
+			t.Error("expected true for death before app start")
+		}
+	})
+
+	t.Run("death after app start - is not old", func(t *testing.T) {
+		stTracker := &DeathTracker{startTime: time.Now().Add(-2 * time.Hour)}
+		deathAfterStart := time.Now().Add(-1 * time.Hour)
+
+		if stTracker.isOldDeath(deathAfterStart) {
+			t.Error("expected false for death after app start")
 		}
 	})
 }

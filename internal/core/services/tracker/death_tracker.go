@@ -63,7 +63,7 @@ func (d *DeathTracker) evictOld() {
 }
 
 func (d *DeathTracker) isOldDeath(t time.Time) bool {
-	return t.Before(time.Now().Add(-2*time.Hour)) && t.Before(d.startTime)
+	return t.Before(time.Now().Add(-2*time.Hour)) || t.Before(d.startTime)
 }
 
 func (d *DeathTracker) isDuplicateDeath(name string, t time.Time) bool {
